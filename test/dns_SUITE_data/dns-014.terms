@@ -1,0 +1,60 @@
+%%-*- mode: erlang -*-
+%% Copyright (c) 2012-2015 Peter Morgan <peter.james.morgan@gmail.com>
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%% http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+
+[#{additional => [],
+   answers => [],
+   authority => [],
+   header => #{aa => 0,
+	       an_count => 0,
+	       ar_count => 0,
+	       id => 18363,
+	       ns_count => 0,
+	       opcode => 0,
+	       qd_count => 1,
+	       qr => 0,
+	       ra => 0,
+	       rcode => 0,
+	       rd => 1,
+	       tc => 0,
+	       z => 0},
+   questions => [#{class => 1,
+		   name => [<<"_sip">>,<<"_udp">>,<<"onsip">>,<<"com">>],
+		   type => 33}]},
+ #{additional => [],
+   answers => [#{class => 1,
+		 data => #{port => 5060,
+			   priority => 0,
+			   target => [<<"sip">>,<<"onsip">>,<<"com">>],
+			   weight => 0},
+		 labels => [<<"_sip">>,<<"_udp">>,<<"onsip">>,<<"com">>],
+		 ttl => 1782,
+		 type => srv}],
+   authority => [],
+   header => #{aa => 0,
+	       an_count => 1,
+	       ar_count => 0,
+	       id => 18363,
+	       ns_count => 0,
+	       opcode => 0,
+	       qd_count => 1,
+	       qr => 1,
+	       ra => 1,
+	       rcode => 0,
+	       rd => 1,
+	       tc => 0,
+	       z => 0},
+   questions => [#{class => 1,
+		   name => [<<"_sip">>,<<"_udp">>,<<"onsip">>,<<"com">>],
+		   type => 33}]}].
