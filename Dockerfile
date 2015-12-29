@@ -1,9 +1,8 @@
 FROM erlang
 MAINTAINER Peter Morgan <peter.james.morgan@gmail.com>
 
-RUN apt-get update && apt-get install -y \
-    make
-
+ADD . /haystack
+WORKDIR /haystack
 RUN make
 
 EXPOSE 3535
