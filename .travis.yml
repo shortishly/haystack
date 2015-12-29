@@ -1,5 +1,11 @@
 ---
 language: erlang
-script: "make"
+
+branches:
+  only:
+    - develop
+
+script: make
+
 otp_release:
   - 18.0
