@@ -13,12 +13,25 @@
 %% limitations under the License.
 -module(haystack_zone).
 -export([parse/1]).
+-export([process/1]).
 -export([strip/1]).
 
-parse(B) when is_binary(B) ->
-    parse(binary_to_list(B));
-parse(S) ->
-    {ok, Tokens, _} = haystack_zone_leexer:string(S),
+
+process(Zone) ->
+    case parse(Zone) of
+        {ok, Statements} ->
+            lists:foldl(fun process/2, #{}, Statements),
+            ok;
+
+        {error, {Line, Module, Message}} ->
+            {error, #{line => Line, module => Module, message => Message}}
+    end.
+
+
+parse(Zone) when is_binary(Zone) ->
+    parse(binary_to_list(Zone));
+parse(Zone) ->
+    {ok, Tokens, _} = haystack_zone_leexer:string(Zone),
     haystack_zone_grammar:parse(strip(Tokens)).
 
 
@@ -57,3 +70,93 @@ inside([{eol, _} | T], A) ->
     inside(T, A);
 inside([H | T], A) ->
     inside(T, [H | A]).
+
+
+process(#{statement := #{control := origin, domain := Domain}}, A) ->
+    A#{origin => Domain};
+
+process(#{statement := #{control := ttl, duration := Duration}}, A) ->
+    A#{duration => Duration};
+
+process(#{statement := #{domain := origin, rr := Resource}},
+        #{origin := Domain} = A) ->
+    resource(Domain, 100, Resource),
+    A#{domain => Domain};
+
+process(#{statement := #{domain := Sub, rr := Resource}},
+        #{origin := Origin} = A) ->
+    Domain = domain(Sub, Origin),
+    resource(Domain, 100, Resource),
+    A#{domain => Domain};
+
+process(#{statement := #{rr := Resource}}, #{domain := Domain} = A) ->
+    resource(Domain, 100, Resource),
+    A.
+
+name(Sub, Domain) ->
+    #{absolute := Absolute} = domain(Sub, Domain),
+    Absolute.
+
+name(#{absolute := Absolute}) ->
+    Absolute.
+
+domain(#{relative := Sub}, #{absolute := FQDN}) ->
+    #{absolute => Sub ++ FQDN};
+domain(#{absolute := _} = FQDN, _) ->
+    FQDN.
+
+
+resource(Domain, TTL, #{type :=Type,
+                        class := Class,
+                        rdata := #{domain := Name}}) when Type == ns orelse
+                                                          Type == cname ->
+    haystack_node:add(name(Domain), Class, Type, TTL, name(Name, Domain));
+
+resource(Domain, TTL, #{type := a = Type,
+                        class := Class,
+                        rdata := #{ip := IP}}) ->
+    haystack_node:add(name(Domain), Class, Type, TTL, IP);
+
+resource(Domain, TTL, #{type := mx = Type,
+                        class := Class,
+                        rdata := #{domain := Mail,
+                                   preference := Preference}}) ->
+    haystack_node:add(name(Domain),
+                      Class,
+                      Type,
+                      TTL,
+                      #{exchange => name(Mail, Domain),
+                        preference => Preference});
+
+resource(Domain, TTL, #{type := soa = Type,
+                        class := Class,
+                        rdata :=  #{expire := Expire,
+                                    m_name := MName,
+                                    minimum := Minimum,
+                                    r_name := RName,
+                                    refresh := Refresh,
+                                    retry := Retry,
+                                    serial := Serial}}) ->
+    haystack_node:add(name(Domain),
+                      Class,
+                      Type,
+                      TTL,
+                      #{m_name => name(MName, Domain),
+                        r_name => name(RName, Domain),
+                        serial => Serial,
+                        refresh => duration(Refresh),
+                        retry => duration(Retry),
+                        expire => duration(Expire),
+                        minimum => duration(Minimum)}).
+
+
+duration(#{weeks := Weeks}) ->
+    duration(#{days => Weeks*7});
+duration(#{days := Days}) ->
+    duration(#{hours => Days*24});
+duration(#{hours := Hours}) ->
+    duration(#{minutes => Hours*60});
+duration(#{minutes := Minutes}) ->
+    duration(#{seconds => Minutes*60});
+duration(#{seconds := Seconds}) ->
+    Seconds.

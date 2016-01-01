@@ -138,6 +138,9 @@ sample_024_test(Config) ->
 sample_025_test(Config) ->
     gold(Config, "sample025").
 
+sample_026_test(Config) ->
+    gold(Config, "sample026").
+
 gold(Config, Name) ->
     {ok, Parse} = parse(Config, Name ++ ".zone"),
     ?assertEqual(common:consult(Config, Name ++ ".terms"), Parse).
