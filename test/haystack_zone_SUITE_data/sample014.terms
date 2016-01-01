@@ -1,3 +1,4 @@
+%%-*- mode: erlang -*-
 %% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,15 +13,12 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
--module(haystack_config).
--export([port/1]).
--export([tsig_rr_fudge/0]).
+#{statement => #{domain => #{relative => [<<"server1">>]},
+                 rr => #{class => in,
+                         rdata => #{ip => {10,0,1,5},v => 4},
+                         type => a}}}.
 
-
-port(udp) ->
-    3535;
-port(http) ->
-    8080.
-
-tsig_rr_fudge() ->
-    300.
+#{statement => #{domain => #{relative => [<<"www">>]},
+                 rr => #{class => in,
+                         rdata => #{domain => #{relative => [<<"server1">>]}},
+                         type => cname}}}.

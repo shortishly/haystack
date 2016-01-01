@@ -30,20 +30,12 @@ and [nsupdate](https://en.wikipedia.org/wiki/Nsupdate) to update some
 records in the `example.test` DNS domain.
 
 We need to make Haystack an authority for the `example.test` domain by
-manually adding a [SOA](https://en.wikipedia.org/wiki/List_of_DNS_record_types#SOA) record for the `example.test` domain.
+adding a
+[SOA](https://en.wikipedia.org/wiki/List_of_DNS_record_types#SOA)
+record for the `example.test` domain.
 
-```erlang
-haystack_node:add([<<"example">>,<<"test">>],
-    in,
-    soa,
-    100,
-    #{m_name => [<<"ns">>, <<"example">>, <<"test">>],
-      r_name => [<<"hostmaster">>, <<"example">>, <<"test">>],
-      serial => 20,
-      refresh => 7200,
-      retry => 600,
-      expire => 3600000,
-      minimum => 60}).
+```
+curl -i -H "Content-Type: text/dns" --data-binary @test/haystack_zone_SUITE_data/sample026.zone localhost:8080/zones
 ```
 
 We can verify that this SOA is now present in Haystack with a simple dig query:

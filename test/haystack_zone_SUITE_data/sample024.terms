@@ -1,0 +1,122 @@
+%%-*- mode: erlang -*-
+%% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%% http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+
+#{comment => <<" designates the start of this zone file in the namespace">>,
+  statement => #{control => origin,
+                 domain => #{absolute => [<<"example">>,<<"com">>]}}}.
+
+#{comment => <<" default expiration time of all resource records"
+               " without their own TTL value">>,
+  statement => #{control => ttl,duration => #{hours => 1}}}.
+
+#{statement => #{
+    domain => #{absolute => [<<"example">>,<<"com">>]},
+    rr => #{class => in,
+            rdata => #{
+              expire => #{weeks => 4},
+              m_name => #{
+                absolute => [<<"ns">>,
+                             <<"example">>,<<"com">>]},
+              minimum => #{hours => 1},
+              r_name => #{absolute => [<<"username">>,
+                                       <<"example">>,
+                                       <<"com">>]},
+              refresh => #{days => 1},
+              retry => #{hours => 2},
+              serial => 2015123103},
+            type => soa}}}.
+
+#{comment => <<" ns.example.com is a nameserver for example.com">>,
+  statement => #{domain => #{absolute => [<<"example">>,<<"com">>]},
+                 rr => #{class => in,
+                         rdata => #{domain => #{relative => [<<"ns">>]}},
+                         type => ns}}}.
+
+#{comment => <<" ns.somewhere.example is a backup nameserver for example.com">>,
+  statement => #{domain => #{absolute => [<<"example">>,<<"com">>]},
+                 rr => #{class => in,
+                         rdata => #{
+                           domain => #{
+                             absolute => [<<"ns">>,
+                                          <<"somewhere">>,
+                                          <<"example">>]}},
+                         type => ns}}}.
+
+#{comment => <<" mail.example.com is the mailserver for example.com">>,
+  statement => #{domain => #{absolute => [<<"example">>,<<"com">>]},
+                 rr => #{class => in,
+                         rdata => #{
+                           domain => #{
+                             absolute => [<<"mail">>,<<"example">>,<<"com">>]},
+                           preference => 10},
+                         type => mx}}}.
+
+#{comment => <<" equivalent to above line, \"@\" represents zone origin">>,
+  statement => #{domain => origin,
+                 rr => #{class => in,
+                         rdata => #{
+                           domain => #{absolute => [<<"mail2">>,<<"example">>,
+                                                    <<"com">>]},
+                           preference => 20},
+                         type => mx}}}.
+
+#{comment => <<" equivalent to above line, but using a relative host name">>,
+  statement => #{domain => origin,
+                 rr => #{class => in,
+                         rdata => #{
+                           domain => #{relative => [<<"mail3">>]},
+                           preference => 50},
+                         type => mx}}}.
+
+#{comment => <<" IPv4 address for example.com">>,
+  statement => #{domain => #{absolute => [<<"example">>,<<"com">>]},
+                 rr => #{class => in,
+                         rdata => #{ip => {192,0,2,1},v => 4},
+                         type => a}}}.
+
+#{comment => <<" IPv4 address for ns.example.com">>,
+  statement => #{domain => #{relative => [<<"ns">>]},
+                 rr => #{class => in,
+                         rdata => #{ip => {192,0,2,2},v => 4},
+                         type => a}}}.
+
+#{comment => <<" www.example.com is an alias for example.com">>,
+  statement => #{domain => #{relative => [<<"www">>]},
+                 rr => #{class => in,
+                         rdata => #{
+                           domain => #{absolute => [<<"example">>,<<"com">>]}},
+                         type => cname}}}.
+
+#{comment => <<" wwwtest.example.com is another alias for www.example.com">>,
+  statement => #{domain => #{relative => [<<"wwwtest">>]},
+                 rr => #{class => in,
+                         rdata => #{domain => #{relative => [<<"www">>]}},
+                         type => cname}}}.
+
+#{comment => <<" IPv4 address for mail.example.com">>,
+  statement => #{domain => #{relative => [<<"mail">>]},
+                 rr => #{class => in,
+                         rdata => #{ip => {192,0,2,3},v => 4},type => a}}}.
+
+#{comment => <<" IPv4 address for mail2.example.com">>,
+  statement => #{domain => #{relative => [<<"mail2">>]},
+                 rr => #{class => in,
+                         rdata => #{ip => {192,0,2,4},v => 4},type => a}}}.
+
+#{comment => <<" IPv4 address for mail3.example.com">>,
+  statement => #{domain => #{relative => [<<"mail3">>]},
+                 rr => #{class => in,
+                         rdata => #{ip => {192,0,2,5},v => 4},
+                         type => a}}}.

@@ -1,4 +1,4 @@
-%% Copyright (c) 2015 Peter Morgan <peter.james.morgan@gmail.com>
+%% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -149,7 +149,8 @@ reencode_019_test(_Config) ->
     {skip, invalid_test}.
 
 gold(Config, Name) ->
-    ?assertEqual(common:consult(Config, Name ++ ".terms"),
+    [Term] = common:consult(Config, Name ++ ".terms"),
+    ?assertEqual(Term,
                  decode(Config, Name ++ ".pcapng")).
 
 decode(Config, Filename) ->

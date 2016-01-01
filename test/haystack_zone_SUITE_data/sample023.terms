@@ -1,3 +1,4 @@
+%%-*- mode: erlang -*-
 %% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,15 +13,17 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
--module(haystack_config).
--export([port/1]).
--export([tsig_rr_fudge/0]).
-
-
-port(udp) ->
-    3535;
-port(http) ->
-    8080.
-
-tsig_rr_fudge() ->
-    300.
+#{statement => #{
+    domain => #{
+      absolute => [<<"example">>,<<"com">>]},
+    rr => #{
+      class => in,
+      rdata => #{
+        expire => #{weeks => 4},
+        m_name => #{absolute => [<<"ns">>,<<"example">>,<<"com">>]},
+        minimum => #{hours => 1},
+        r_name => #{absolute => [<<"username">>,<<"example">>,<<"com">>]},
+        refresh => #{days => 1},
+        retry => #{hours => 2},
+        serial => 2015123102},
+      type => soa}}}.
