@@ -22,6 +22,32 @@ To run the release:
 make run
 ```
 
+## Docker
+
+Haystack is available as an automated build from
+[hub.docker.com](https://hub.docker.com/r/shortishly/haystack/). Simply
+use the following commands to run your own Haystack instance:
+
+```
+docker run --name haystack -p 3535:3535/udp -p 8080:8080 -d shortishly/haystack:develop
+```
+
+You can use port 8080 to POST zone records to Haystack, and port 3535
+(UDP) to issue DNS queries or updates.
+
+To upload a zone file to Haystack:
+
+```
+curl -i -H "Content-Type: text/dns" --data-binary @test/haystack_zone_SUITE_data/sample026.zone $(docker-machine ip default):8080/zones
+```
+
+And to query or update records:
+
+```
+dig @$(docker-machine ip default) -p 3535 example.test. soa
+```
+
+
 ## Quick start
 
 We will use
