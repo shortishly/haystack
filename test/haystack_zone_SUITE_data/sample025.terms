@@ -1,0 +1,61 @@
+%%-*- mode: erlang -*-
+%% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%% http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+
+#{comment => <<" MINIMUM">>,
+  statement => #{
+    domain => origin,
+    rr => #{class => in,
+            rdata => #{expire => #{seconds => 3600000},
+                       m_name => #{relative => [<<"VENERA">>]},
+                       minimum => #{seconds => 60},
+                       r_name => #{relative => [<<"Action">>,<<"domains">>]},
+                       refresh => #{seconds => 7200},
+                       retry => #{seconds => 600},
+                       serial => 23},
+            type => soa}}}.
+
+#{statement => #{rr => #{rdata => #{domain => #{absolute => [<<"A">>,<<"ISI">>,
+                                                             <<"EDU">>]}},
+                         type => ns}}}.
+
+#{statement => #{rr => #{rdata => #{domain => #{relative => [<<"VENERA">>]}},
+                         type => ns}}}.
+
+#{statement => #{rr => #{rdata => #{domain => #{relative => [<<"VAXA">>]}},
+                         type => ns}}}.
+
+#{statement => #{rr => #{rdata => #{domain => #{relative => [<<"VENERA">>]},
+                                    preference => 10},
+                         type => mx}}}.
+
+#{statement => #{rr => #{rdata => #{domain => #{relative => [<<"VAXA">>]},
+                                    preference => 20},
+                         type => mx}}}.
+
+#{statement => #{domain => #{relative => [<<"A">>]},
+                 rr => #{rdata => #{ip => {26,3,0,103},v => 4},
+                         type => a}}}.
+
+#{statement => #{domain => #{relative => [<<"VENERA">>]},
+                 rr => #{rdata => #{ip => {10,1,0,52},v => 4},type => a}}}.
+
+#{statement => #{rr => #{rdata => #{ip => {128,9,0,32},v => 4},
+                         type => a}}}.
+
+#{statement => #{domain => #{relative => [<<"VAXA">>]},
+                 rr => #{rdata => #{ip => {10,2,0,27},v => 4},type => a}}}.
+
+#{statement => #{rr => #{rdata => #{ip => {128,9,0,33},v => 4},
+                         type => a}}}.
