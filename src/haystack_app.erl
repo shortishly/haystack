@@ -19,12 +19,20 @@
 -export([stop/1]).
 
 start(_Type, _Args) ->
-    {ok, _} = cowboy:start_http(?MODULE,
-                                100,
-                                [{port, haystack_config:port(http)}],
-                                [{env, [dispatch()]}]),
-    haystack_sup:start_link().
+    try
+        {ok, _} = cowboy:start_http(?MODULE,
+                                    100,
+                                    [{port, haystack_config:port(http)}],
+                                    [{env, [dispatch()]}]),
+        {ok, Sup} = haystack_sup:start_link(),
+        {ok, Sup, #{listeners => [?MODULE]}}
+    catch
+        _:Reason ->
+            {error, Reason}
+    end.
 
+stop(#{listeners := Listeners}) ->
+    lists:foreach(fun cowboy:stop_listener/1, Listeners);
 stop(_State) ->
     ok.
 

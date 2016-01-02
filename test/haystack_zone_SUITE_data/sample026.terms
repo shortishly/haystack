@@ -16,6 +16,8 @@
 #{statement => #{control => origin,
                  domain => #{absolute => [<<"example">>,<<"test">>]}}}.
 
+#{statement => #{control => ttl,duration => #{minutes => 5}}}.
+
 #{statement => #{
     domain => origin,
     rr => #{class => in,
@@ -26,7 +28,7 @@
                                                 <<"example">>,<<"test">>]},
                        refresh => #{days => 1},
                        retry => #{hours => 2},
-                       serial => 2016010105},
+                       serial => 2016010107},
             type => soa}}}.
 
 #{statement => #{rr => #{class => in,
