@@ -86,16 +86,18 @@ as follows:
 >	secret "BriKgwLS0+O8tRXI7au/fw==";<br />
 >};<br />
 
-Add this shared secret to the registry as follows:
+A copy of this key is provided as part of the test suite for Haystack,
+and is used in the following command adding this shared secret to the
+registry:
 
-```erlang
-haystack_secret:add([<<"key">>, <<"example">>,<<"test">>],base64:decode("BriKgwLS0+O8tRXI7au/fw==")).
+```shell
+curl -i -H "Content-type: text/plain" --data-binary @test/haystack_secret_SUITE_data/sample001.key localhost:8080/secrets
 ```
 
 Using the same secret with `nsupdate` to update the registry:
 
 ```shell
-nsupdate -l -p 3535 -k key.example.test
+nsupdate -l -p 3535 -k test/haystack_secret_SUITE_data/sample001.key
 ```
 > update delete haystack.example.test A<br />
 > update add haystack.example.test 86400 A 10.1.2.3<br />

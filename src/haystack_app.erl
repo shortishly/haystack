@@ -38,5 +38,8 @@ stop(_State) ->
 
 
 dispatch() ->
-    {dispatch,
-     cowboy_router:compile([{'_', [{"/zones", haystack_zones_resource, []}]}])}.
+    {dispatch, cowboy_router:compile([{'_', resources()}])}.
+
+resources() ->
+    [{"/zones", haystack_zones_resource, []},
+     {"/secrets", haystack_secret_resource, []}].
