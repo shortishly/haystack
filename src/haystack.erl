@@ -14,6 +14,8 @@
 
 -module(haystack).
 -export([ensure_loaded/0]).
+-export([get_env/1]).
+-export([get_env/2]).
 -export([make/0]).
 -export([modules/0]).
 -export([start/0]).
@@ -27,6 +29,14 @@ start() ->
 make() ->
     make:all([load]).
 
+get_env(Key, Default) ->
+    gproc:get_env(l, ?MODULE, Key, strategy() ++ [{default, Default}]).
+
+get_env(Key) ->
+    gproc:get_env(l, ?MODULE, Key, strategy()).
+
+strategy() ->
+    [os_env, app_env].
 
 ensure_loaded() ->
     lists:foreach(fun code:ensure_loaded/1, modules()).

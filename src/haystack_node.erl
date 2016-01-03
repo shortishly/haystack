@@ -17,6 +17,7 @@
 -export([add/5]).
 -export([find/3]).
 -export([remove/3]).
+-export([remove/5]).
 
 -on_load(on_load/0).
 
@@ -46,8 +47,11 @@ find(Name, Class, Type) ->
             [as_map(Match) || #?MODULE{} = Match <- Matches]
     end.
 
-remove(_Name, _Class, _Type) ->
-    ok.
+remove(Name, Class, Type) ->
+    ets:match_delete(?MODULE, r(Name, Class, Type, '_', '_')).
+
+remove(Name, Class, Type, TTL, Data) ->
+    ets:delete_object(?MODULE, r(Name, Class, Type, TTL, Data)).
 
 as_map(#?MODULE{nct = {Name, Class, Type}, ttl = TTL, data = Data}) ->
     #{labels => Name, class => Class, type => Type, ttl => TTL, data => Data}.

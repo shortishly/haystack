@@ -22,6 +22,42 @@ To run the release:
 make run
 ```
 
+## Service Registration
+
+Haystack will automatically register and unregister docker containers
+using [SRV](https://en.wikipedia.org/wiki/SRV_record)
+records. Haystack it will automatically try to connect to Docker using
+the `DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables, and
+will register any existing containers, and will continue to regsister (or
+unregister) further containers as they are created or destroyed on
+that docker host.
+
+Lets try this out, by starting up Haystack:
+
+```shell
+make run
+```
+
+As an example, lets create a pool of [nginx](https://www.nginx.com) servers.
+
+```shell
+dig @localhost -p 3535 _http._tcp.nginx.services.example.test srv
+```
+
+Haystack will automatically register a service record using
+`_http._tcp.nginx` (and also `_https._tcp.nginx`). Lets start a couple
+of nginx servers:
+
+```shell
+docker run -d -P nginx
+docker run -d -P nginx
+```
+
+If you run the above `dig` command again you should see that `SRV`
+records have been automatically created for each nginx instance. You
+can stop (and start again) each container, Haystack will remove and
+add the DNS records for each container.
+
 ## Docker
 
 Haystack is available as an automated build from

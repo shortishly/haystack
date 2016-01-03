@@ -23,6 +23,7 @@ start_link() ->
 
 init([]) ->
     Procs = [worker(haystack_table_owner),
+             worker(haystack_docker),
              worker(haystack_udp_request)],
     {ok, {{one_for_one, 5, 5}, Procs}}.
 
