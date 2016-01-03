@@ -26,9 +26,9 @@ make run
 
 Haystack will automatically register and unregister docker containers
 using [SRV](https://en.wikipedia.org/wiki/SRV_record)
-records. Haystack it will automatically try to connect to Docker using
-the `DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables, and
-will register any existing containers, and will continue to regsister (or
+records. Haystack will automatically connect to Docker using the
+`DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables, and
+register any existing containers, and will continue to regsister (or
 unregister) further containers as they are created or destroyed on
 that docker host.
 
