@@ -109,7 +109,7 @@ binary_value_of(Symbol) ->
 
 value_of({Symbol, _}) ->
     Symbol;
-value_of({_, Symbol, _}) ->
+value_of({_, _, Symbol}) ->
     Symbol.
 
 rel_or_abs(Names) ->

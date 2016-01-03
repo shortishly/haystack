@@ -16,6 +16,7 @@
 
 -export([add/2]).
 -export([find/1]).
+-export([process/1]).
 -export([remove/1]).
 
 -on_load(on_load/0).
@@ -47,3 +48,24 @@ remove(_Name) ->
 
 r(Name, Secret) ->
     #?MODULE{name = Name, secret = Secret}.
+
+
+process(Secrets) ->
+    case parse(Secrets) of
+        {ok, Keys} ->
+            lists:foreach(fun key/1, Keys),
+            ok;
+        {error, {Line, Module, Message}} ->
+            {error, #{line => Line, module => Module, message => Message}}
+    end.
+
+
+parse(Secrets) when is_binary(Secrets) ->
+    parse(binary_to_list(Secrets));
+parse(Secrets) ->
+    {ok, Tokens, _} = haystack_secret_leexer:string(Secrets),
+    haystack_secret_grammar:parse(Tokens).
+
+
+key(#{algorithm := "hmac-md5", key := Name, secret := Secret}) ->
+    add(Name, Secret).
