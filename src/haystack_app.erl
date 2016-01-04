@@ -41,5 +41,5 @@ dispatch() ->
     {dispatch, cowboy_router:compile([{'_', resources()}])}.
 
 resources() ->
-    [{"/zones", haystack_zones_resource, []},
+    [{"/zones", haystack_zone_resource, []},
      {"/secrets", haystack_secret_resource, []}].
