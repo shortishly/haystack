@@ -27,6 +27,8 @@
 
 -on_load(on_load/0).
 
+-include_lib("kernel/include/inet.hrl").
+
 %% API.
 
 -spec start_link() -> {ok, pid()}.
@@ -69,10 +71,7 @@ init([]) ->
                            port => Port,
                            certfile => Cert,
                            keyfile => Key,
-                           inspection => #{},
-                           origin => [<<"services">>,
-                                      <<"example">>,
-                                      <<"test">>]}};
+                           inspection => #{}}};
 
                 {error, Reason} ->
                     {stop, Reason}
@@ -91,12 +90,32 @@ handle_cast(_, State) ->
 handle_info({gun_up, Gun, http}, #{docker := Gun} = State) ->
     {noreply,
      State#{
+       info => gun:get(Gun, "/info"),
        containers => gun:get(Gun, "/containers/json"),
        events => gun:get(Gun, "/events")
       }};
 
 handle_info({gun_down, Gun, http, normal, [], []}, #{docker := Gun} = State) ->
     {noreply, State};
+
+handle_info({gun_data, _, Info, fin, Data},
+            #{info := Info, name := Name} = State) ->
+    #{<<"ID">> := Id} = jsx:decode(Data, [return_maps]),
+
+    case inet:parse_ipv4_address(Name) of
+        {ok, Address} ->
+            register_docker(Id, Address);
+
+        {error, einval} ->
+            {ok,
+             #hostent{h_addr_list = Addresses}} = inet_res:getbyname(Name, a),
+            lists:foreach(fun
+                              (Address) ->
+                                  register_docker(Id, Address)
+                          end,
+                          Addresses)
+    end,
+    {noreply, maps:without([info], State#{id => Id})};
 
 handle_info({gun_data, _, Containers, fin, Data},
             #{containers := Containers} = State) ->
@@ -107,6 +126,10 @@ handle_info({gun_data, _, Containers, fin, Data},
 
 handle_info({gun_data, _, Events, nofin, Data}, #{events := Events} = State) ->
     {noreply, event(jsx:decode(Data, [return_maps]), State)};
+
+handle_info({gun_response, _, Info, nofin, 200, _},
+            #{info := Info} = State) ->
+    {noreply, State};
 
 handle_info({gun_response, _, Containers, nofin, 200, _},
             #{containers := Containers} = State) ->
@@ -146,7 +169,7 @@ connection() ->
 register_container(#{<<"Id">> := Id,
                      <<"Image">> := Image,
                      <<"Ports">> := Ports},
-                   #{origin := Origin} = State) ->
+                   #{id := DockerId} = State) ->
     lists:foreach(fun
                       (#{<<"PrivatePort">> := Private,
                          <<"PublicPort">> := Public,
@@ -156,7 +179,7 @@ register_container(#{<<"Id">> := Id,
                                              Public,
                                              Type,
                                              Image,
-                                             Origin);
+                                             docker_name(DockerId));
 
                       (#{<<"PrivatePort">> := _, <<"Type">> := _}) ->
                           nop;
@@ -168,7 +191,7 @@ register_container(#{<<"Id">> := Id,
                                              binary_to_integer(Public),
                                              Type,
                                              Image,
-                                             Origin)
+                                             docker_name(DockerId))
                   end,
                   Ports),
     State.
@@ -179,7 +202,7 @@ register_container(Id, Private, Public, Type, Image, Origin) ->
 
     Name = [<<"_", Service/binary>>,
             <<"_", Type/binary>>,
-            name(Image) | Origin],
+            name(Image) | labels(haystack_config:origin(services))],
     Class = in,
     TTL = ttl(),
     Data = #{priority => priority(),
@@ -279,3 +302,27 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
 
 event(_, State) ->
     State.
+
+labels(DomainName) ->
+    binary:split(DomainName, <<".">>, [global]).
+
+register_docker(Name, Address) ->
+    haystack_node:add(
+      docker_name(Name),
+      in,
+      a,
+      ttl(),
+      Address).
+
+docker_name(Name) ->
+      labels(<<
+               "d",
+               (hash(Name))/binary,
+               ".",
+               (haystack_config:origin(dockers))/binary
+             >>).
+
+hash(Name) ->
+    list_to_binary(
+      string:to_lower(
+        integer_to_list(erlang:phash2(Name), 26))).

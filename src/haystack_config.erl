@@ -13,6 +13,9 @@
 %% limitations under the License.
 
 -module(haystack_config).
+-export([acceptors/1]).
+-export([origin/0]).
+-export([origin/1]).
 -export([port/1]).
 -export([tsig_rr_fudge/0]).
 
@@ -22,5 +25,17 @@ port(udp) ->
 port(http) ->
     8080.
 
+acceptors(http) ->
+    100.
+
 tsig_rr_fudge() ->
     300.
+
+origin(services) ->
+    <<"services.", (origin())/binary>>;
+
+origin(dockers) ->
+    <<"dockers.", (origin())/binary>>.
+
+origin() ->
+    <<"haystack">>.
