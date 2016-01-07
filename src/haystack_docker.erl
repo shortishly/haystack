@@ -36,7 +36,6 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
-
 on_load() ->
     haystack_table:new(?MODULE, bag).
 
@@ -59,19 +58,22 @@ r(Id, Name, Class, Type, TTL, Data) ->
 
 init([]) ->
     case connection() of
-        {ok, #{name := Name, port := Port, cert := Cert, key := Key}} ->
+        {ok, #{name := Name,
+               port := Port,
+               cert := Cert,
+               key := Key}} ->
+
             case gun:open(Name,
                           Port,
                           #{transport => ssl,
-                            transport_opts => [{certfile, Cert},
-                                               {keyfile, Key}]}) of
+                            transport_opts => [{cert, Cert},
+                                               {key, Key}]}) of
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            name => Name,
                            port => Port,
-                           certfile => Cert,
-                           keyfile => Key,
-                           inspection => #{}}};
+                           cert => Cert,
+                           key => Key}};
 
                 {error, Reason} ->
                     {stop, Reason}
@@ -146,25 +148,48 @@ code_change(_, State, _) ->
     {ok, State}.
 
 connection() ->
-    case {haystack:get_env(docker_host), haystack:get_env(docker_cert_path)} of
-        {undefined, _} ->
+    case {haystack:get_env(docker_host),
+          haystack:get_env(docker_cert_path),
+          haystack:get_env(docker_cert),
+          haystack:get_env(docker_key)} of
+
+        {undefined, _, _, _} ->
             {error, {missing, "DOCKER_HOST"}};
 
-        {_, undefined} ->
+        {_, undefined, undefined, undefined} ->
             {error, {missing, "DOCKER_CERT_PATH"}};
 
-        {URI, CertPath} ->
-            case http_uri:parse(URI) of
-                {ok, {_, _, Name, Port, _, _}} ->
-                    {ok, #{name => Name,
-                           cert => filename:join(CertPath, "cert.pem"),
-                           key => filename:join(CertPath, "key.pem"),
-                           port => Port}};
+        {URI, undefined, Cert, Key} ->
+            connection(URI, Cert, Key);
 
-                {error, _} = Error ->
+        {URI, CertPath, undefined, undefined} ->
+            case {read_file(CertPath, "cert.pem"),
+                  read_file(CertPath, "key.pem")} of
+
+                {{ok, Cert}, {ok, Key}} ->
+                    connection(URI, Cert, Key);
+
+                {{error, _} = Error, _} ->
+                    Error;
+
+                {_, {error, _} = Error}->
                     Error
             end
     end.
+
+connection(URI, Cert, Key) ->
+    case http_uri:parse(URI) of
+        {ok, {_, _, Name, Port, _, _}} ->
+            {ok, #{name => Name,
+                   cert => Cert,
+                   key => Key,
+                   port => Port}};
+        {error, _} = Error ->
+            Error
+    end.
+
+read_file(Path, File) ->
+    file:read_file(filename:join(Path, File)).
 
 register_container(#{<<"Id">> := Id,
                      <<"Image">> := Image,
@@ -200,9 +225,8 @@ register_container(#{<<"Id">> := Id,
 register_container(Id, Private, Public, Type, Image, Origin) ->
     #{Private := Service} = services(),
 
-    Name = [<<"_", Service/binary>>,
-            <<"_", Type/binary>>,
-            name(Image) | labels(haystack_config:origin(services))],
+    Name = [name(Image) | labels(haystack_config:origin(services))],
+
     Class = in,
     TTL = ttl(),
     Data = #{priority => priority(),
@@ -212,13 +236,21 @@ register_container(Id, Private, Public, Type, Image, Origin) ->
        },
 
     haystack_node:add(
-      Name,
+      [<<"_", Service/binary>>,
+       <<"_", Type/binary>> | Name],
       Class,
       srv,
       TTL,
       Data),
 
-    ets:insert(?MODULE, [r(Id, Name, Class, srv, TTL, Data)]).
+    ets:insert(?MODULE, [r(Id, Name, Class, srv, TTL, Data)]),
+
+    lists:foreach(fun
+                      (Address) ->
+                          haystack_node:add(Name, in, a, ttl(), Address)
+                  end,
+                  haystack_inet:getifaddrs(v4)).
+
 
 unregister_container(Id) ->
     lists:foreach(fun
@@ -284,16 +316,18 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
 
         {ok, {{_, 200, _}, _, Body}} ->
 
-            JSON = jsx:decode(Body, [return_maps]),
+            case jsx:decode(Body, [return_maps]) of
+                #{<<"NetworkSettings">> :=  #{<<"Ports">> := null}} ->
+                    nothing_to_register;
 
-            #{<<"Config">> := #{<<"Image">> := Image},
-              <<"Id">> := Id,
-              <<"NetworkSettings">> := #{<<"Ports">> := Ports}} = JSON,
-
-            register_container(#{<<"Image">> => Image,
-                                 <<"Id">> => Id,
-                                 <<"Ports">> => maps:to_list(Ports)},
-                               State);
+                #{<<"Config">> := #{<<"Image">> := Image},
+                  <<"Id">> := Id,
+                  <<"NetworkSettings">> := #{<<"Ports">> := Ports}} ->
+                    register_container(#{<<"Image">> => Image,
+                                         <<"Id">> => Id,
+                                         <<"Ports">> => maps:to_list(Ports)},
+                                       State)
+            end;
 
         {error, _Reason} ->
             whatever
