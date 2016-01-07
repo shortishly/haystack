@@ -21,7 +21,7 @@
 start(_Type, _Args) ->
     try
         {ok, _} = cowboy:start_http(?MODULE,
-                                    100,
+                                    haystack_config:acceptors(http),
                                     [{port, haystack_config:port(http)}],
                                     [{env, [dispatch()]}]),
         {ok, Sup} = haystack_sup:start_link(),
@@ -38,8 +38,12 @@ stop(_State) ->
 
 
 dispatch() ->
-    {dispatch, cowboy_router:compile([{'_', resources()}])}.
+    {dispatch, cowboy_router:compile(resources())}.
 
 resources() ->
-    [{"/zones", haystack_zones_resource, []},
-     {"/secrets", haystack_secret_resource, []}].
+    [{<<"localhost">>,
+      [{<<"/zones">>, haystack_zone_resource, []},
+       {<<"/secrets">>, haystack_secret_resource, []}]},
+
+     {<<":service.", (haystack_config:origin(services))/binary>>,
+      [{'_', haystack_permanently_moved_resource, []}]}].

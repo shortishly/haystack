@@ -26,6 +26,7 @@
 start() ->
     application:ensure_all_started(?MODULE).
 
+
 make() ->
     make:all([load]).
 
@@ -46,5 +47,9 @@ modules() ->
     Modules.
 
 t() ->
-    Modules = [{haystack_query, '_', '_'}, {haystack_update, '_', '_'}],
-    recon_trace:calls(Modules, 100, [new, {scope, local}]).
+    Modules = [haystack_query, haystack_update, haystack_docker],
+    lists:foreach(fun code:ensure_loaded/1, Modules),
+    recon_trace:calls([m(Module) || Module <- Modules], 100, [{scope, local}]).
+
+m(Module) ->
+    {Module, '_', '_'}.

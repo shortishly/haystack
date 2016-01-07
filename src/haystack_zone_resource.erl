@@ -12,14 +12,14 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
--module(haystack_zones_resource).
--export([allowed_methods/2]).
+-module(haystack_zone_resource).
 -export([allow_missing_post/2]).
--export([init/3]).
--export([rest_init/2]).
+-export([allowed_methods/2]).
 -export([content_types_accepted/2]).
 -export([content_types_provided/2]).
 -export([from_text_dns/2]).
+-export([init/3]).
+-export([rest_init/2]).
 
 
 init(_, _, _) ->
