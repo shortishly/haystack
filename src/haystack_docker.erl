@@ -28,6 +28,7 @@
 -on_load(on_load/0).
 
 -include_lib("kernel/include/inet.hrl").
+-include_lib("public_key/include/public_key.hrl").
 
 %% API.
 
@@ -70,6 +71,7 @@ init([]) ->
                                                {key, Key}]}) of
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
+                           monitor => monitor(process, Pid),
                            name => Name,
                            port => Port,
                            cert => Cert,
@@ -88,6 +90,10 @@ handle_call(_, _, State) ->
 
 handle_cast(_, State) ->
     {stop, error, State}.
+
+handle_info({'DOWN', Monitor, process, _, normal},
+            #{monitor := Monitor} = State) ->
+    {stop, {error, lost_connection}, State};
 
 handle_info({gun_up, Gun, http}, #{docker := Gun} = State) ->
     {noreply,
@@ -159,8 +165,14 @@ connection() ->
         {_, undefined, undefined, undefined} ->
             {error, {missing, "DOCKER_CERT_PATH"}};
 
-        {URI, undefined, Cert, Key} ->
-            connection(URI, Cert, Key);
+        {_, undefined, _, undefined} ->
+            {error, {missing, "DOCKER_KEY"}};
+
+        {_, undefined, undefined, _} ->
+            {error, {missing, "DOCKER_CERT"}};
+
+        {URI, _, Cert, Key} when is_list(Cert) andalso is_list(Key) ->
+            connection(URI, list_to_binary(Cert), list_to_binary(Key));
 
         {URI, CertPath, undefined, undefined} ->
             case {read_file(CertPath, "cert.pem"),
@@ -178,11 +190,13 @@ connection() ->
     end.
 
 connection(URI, Cert, Key) ->
+    [{KeyType, Value, _}] = public_key:pem_decode(Key),
+    [{_, Certificate, _}] = public_key:pem_decode(Cert),
     case http_uri:parse(URI) of
         {ok, {_, _, Name, Port, _, _}} ->
             {ok, #{name => Name,
-                   cert => Cert,
-                   key => Key,
+                   cert => Certificate,
+                   key => {KeyType, Value},
                    port => Port}};
         {error, _} = Error ->
             Error
