@@ -13,25 +13,17 @@
 %% limitations under the License.
 
 -module(haystack_inet).
--export([getifaddrs/0]).
 -export([getifaddrs/1]).
 
 getifaddrs(v4) ->
-    maps:fold(fun
-                  (_, #{addr := {_, _, _, _} = IP}, A) ->
-                      [IP | A];
-
-                  (_, _, A) ->
-                      A
-              end,
-              [],
-              getifaddrs()).
-
-getifaddrs() ->
     {ok, Interfaces} = inet:getifaddrs(),
     lists:foldl(fun
-                    ({Interface, Properties}, A) ->
-                        A#{Interface => maps:from_list(Properties)}
-                end,
-                #{},
-                Interfaces).
+                  ({_, Properties}, A) ->
+                        [Addr ||
+                            {_, _, _, _} = Addr <-
+                                proplists:get_all_values(addr,
+                                                         Properties),
+                               Addr /= {127, 0, 0, 1}] ++ A
+              end,
+              [],
+              Interfaces).
