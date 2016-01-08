@@ -157,10 +157,10 @@ code_change(_, State, _) ->
     {ok, State}.
 
 connection() ->
-    case {haystack:get_env(docker_host),
-          haystack:get_env(docker_cert_path),
-          haystack:get_env(docker_cert),
-          haystack:get_env(docker_key)} of
+    case {haystack:get_env(docker_host, [os_env]),
+          haystack:get_env(docker_cert_path, [os_env]),
+          haystack:get_env(docker_cert, [os_env]),
+          haystack:get_env(docker_key, [os_env])} of
 
         {undefined, _, _, _} ->
             {error, {missing, "DOCKER_HOST"}};
