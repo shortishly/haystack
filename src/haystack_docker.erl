@@ -237,8 +237,6 @@ register_container(#{<<"Id">> := Id,
 
 
 register_container(Id, Private, Public, Type, Image, Origin) ->
-    #{Private := Service} = services(),
-
     Name = [name(Image) | labels(haystack_config:origin(services))],
 
     Class = in,
@@ -250,7 +248,7 @@ register_container(Id, Private, Public, Type, Image, Origin) ->
        },
 
     haystack_node:add(
-      [<<"_", Service/binary>>,
+      [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
        <<"_", Type/binary>> | Name],
       Class,
       srv,
@@ -297,14 +295,6 @@ name(Image) ->
             [Name, _Version] = binary:split(NameVersion, <<":">>),
             Name
     end.
-
-services() ->
-    #{
-       80 => <<"http">>,
-       443 => <<"https">>,
-       3535 => <<"domain">>,
-       8080 => <<"https">>
-     }.
 
 event(#{<<"id">> := Id, <<"status">> := <<"stop">>}, State) ->
     unregister_container(Id),

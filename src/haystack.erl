@@ -18,6 +18,9 @@
 -export([get_env/2]).
 -export([make/0]).
 -export([modules/0]).
+-export([priv_dir/0]).
+-export([priv_file/1]).
+-export([priv_read_file/1]).
 -export([start/0]).
 -export([t/0]).
 
@@ -53,3 +56,12 @@ t() ->
 
 m(Module) ->
     {Module, '_', '_'}.
+
+priv_dir() ->
+    code:priv_dir(?MODULE).
+
+priv_file(Filename) ->
+    filename:join(priv_dir(), Filename).
+
+priv_read_file(Filename) ->
+    file:read_file(priv_file(Filename)).
