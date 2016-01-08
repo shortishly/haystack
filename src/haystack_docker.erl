@@ -82,7 +82,10 @@ init([]) ->
             end;
 
         {error, Reason} ->
-            {stop, Reason}
+            error_logger:info_report([{module, ?MODULE},
+                                      {line, ?LINE},
+                                      {reason, Reason}]),
+            ignore
     end.
 
 handle_call(_, _, State) ->

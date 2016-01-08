@@ -21,9 +21,10 @@
 
 
 port(udp) ->
-    3535;
+    haystack:get_env(udp_port, [app_env, {default, 53}]);
 port(http) ->
-    8080.
+    haystack:get_env(http_port, [app_env, {default, 80}]).
+
 
 acceptors(http) ->
     100.

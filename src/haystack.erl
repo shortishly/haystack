@@ -33,14 +33,11 @@ start() ->
 make() ->
     make:all([load]).
 
-get_env(Key, Default) ->
-    gproc:get_env(l, ?MODULE, Key, strategy() ++ [{default, Default}]).
+get_env(Key, Strategy) ->
+    gproc:get_env(l, ?MODULE, Key, Strategy).
 
 get_env(Key) ->
-    gproc:get_env(l, ?MODULE, Key, strategy()).
-
-strategy() ->
-    [os_env, app_env].
+    gproc:get_env(l, ?MODULE, Key).
 
 ensure_loaded() ->
     lists:foreach(fun code:ensure_loaded/1, modules()).
