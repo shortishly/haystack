@@ -59,7 +59,7 @@ and seeing which container responds:
 wget http://nginx.services.haystack
 ```
 
-> Connecting to nginx.services.haystack (172.17.0.3:80)
+> Connecting to nginx.services.haystack (172.17.0.3:80)<br />
 > Connecting to da393gf.dockers.haystack:32841 (192.168.99.100:32841)
 
 The request to `nginx.services.haystack` is initially handled by the
@@ -75,7 +75,7 @@ containers. Lets try making some more requests:
 wget http://nginx.services.haystack
 ```
 
-> Connecting to nginx.services.haystack (172.17.0.3:80)
+> Connecting to nginx.services.haystack (172.17.0.3:80)<br />
 > Connecting to da393gf.dockers.haystack:32829 (192.168.99.100:32829)
 
 This time the Haystack load balancer has randomly chosen the nginx
