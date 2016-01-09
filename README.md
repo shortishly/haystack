@@ -24,7 +24,7 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            --publish=80:80 \
            --publish=8080:8080 \
            --detach \
-           shortishly/haystack:develop
+           shortishly/haystack
 ```
 
 As an example, create a pool of [nginx](https://www.nginx.com) servers:
