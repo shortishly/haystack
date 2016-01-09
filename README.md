@@ -16,10 +16,10 @@ unregister) further containers on that docker host.
 Lets try this out, by starting up Haystack in docker:
 
 ```shell
-docker run -e DOCKER_HOST=${DOCKER_HOST} \<br />
-           -e DOCKER_KEY="$(cat ${DOCKER_CERT_PATH}/key.pem)" \<br />
-           -e DOCKER_CERT="$(cat ${DOCKER_CERT_PATH}/cert.pem)" \<br />
-           --name=haystack \<br/>
+docker run -e DOCKER_HOST=${DOCKER_HOST} \
+           -e DOCKER_KEY="$(cat ${DOCKER_CERT_PATH}/key.pem)" \
+           -e DOCKER_CERT="$(cat ${DOCKER_CERT_PATH}/cert.pem)" \
+           --name=haystack \
            -d shortishly/haystack:develop
 ```
 
@@ -34,10 +34,10 @@ Start a [busybox](https://www.busybox.net) terminal session with
 Haystack providing the DNS:
 
 ```shell
-docker run --dns=$(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack) \<br/>
-           -t \<br/>
-           -i \<br/>
-           --rm busybox \<br/>
+docker run --dns=$(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack) \
+           -t \
+           -i \
+           --rm busybox \
            /bin/sh
 ```
 
