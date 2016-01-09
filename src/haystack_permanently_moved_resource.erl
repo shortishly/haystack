@@ -54,7 +54,7 @@ previously_existed(Req, State) ->
 
 moved_permanently(Req, #{host := Host} = State) ->
     {Path, _} = cowboy_req:path(Req),
-    {{true, <<Host/binary, Path/binary>>}, Req, State};
+    {{true, <<"http://", Host/binary, Path/binary>>}, Req, State};
 moved_permanently(Req, State) ->
     {false, Req, State}.
 
