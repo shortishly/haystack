@@ -26,7 +26,9 @@ on_load() ->
 
 
 -record(?MODULE, {
-           %% {name, class, type}
+           name,
+           class,
+           type,
            nct,
            ttl = 0,
            data
@@ -36,10 +38,10 @@ add(Name, Class, Type, TTL, Data) ->
     ets:insert(?MODULE, [r(Name, Class, Type, TTL, Data)]).
 
 r(Name, Class, Type, TTL, Data) ->
-    #?MODULE{nct = {Name, Class, Type}, ttl = TTL, data = Data}.
+    #?MODULE{name = Name, class = Class, type = Type, ttl = TTL, data = Data}.
 
 find(Name, Class, Type) ->
-    case ets:lookup(?MODULE, {Name, Class, Type}) of
+    case ets:match_object(?MODULE, r(Name, Class, Type, '_', '_')) of
         [] ->
             not_found;
 
@@ -53,5 +55,9 @@ remove(Name, Class, Type) ->
 remove(Name, Class, Type, TTL, Data) ->
     ets:delete_object(?MODULE, r(Name, Class, Type, TTL, Data)).
 
-as_map(#?MODULE{nct = {Name, Class, Type}, ttl = TTL, data = Data}) ->
+as_map(#?MODULE{name = Name,
+                class = Class,
+                type = Type,
+                ttl = TTL,
+                data = Data}) ->
     #{labels => Name, class => Class, type => Type, ttl => TTL, data => Data}.

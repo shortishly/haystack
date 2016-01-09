@@ -30,6 +30,9 @@ recursive(Name, Class, Type) ->
         {error, {nxdomain, _}} ->
             not_found;
 
+        {error, formerr} ->
+            not_found;
+
         {ok, Response} ->
             [translate(Answer) || Answer <- inet_dns:msg(Response, anlist)]
     end.
