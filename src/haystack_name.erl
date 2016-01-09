@@ -15,6 +15,8 @@
 -export([decode/2]).
 -export([encode/1]).
 -export([encode/3]).
+-export([labels/1]).
+-export([stringify/1]).
 
 
 %% https://tools.ietf.org/html/rfc1035, section: 3.1.
@@ -68,3 +70,18 @@ encode([Label | T] = Labels, Packet, Offsets) when byte_size(Label) =< 63 ->
     end.
 
 
+labels(DomainName) when is_list(DomainName) ->
+    labels(list_to_binary(DomainName));
+labels(DomainName) when is_binary(DomainName) ->
+    binary:split(DomainName, <<".">>, [global]).
+
+
+stringify(Labels) ->
+    binary_to_list(lists:foldr(fun
+                                   (Label, <<>>) ->
+                                       Label;
+                                   (Label, A) ->
+                                       <<Label/binary, ".", A/binary>>
+                               end,
+                               <<>>,
+                               Labels)).

@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2015 Peter Morgan <peter.james.morgan@gmail.com>
+%% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ process(#{header := Header,
 process(#{header := Header, questions := Questions} = Packet) ->
     lists:foldl(fun
                     (#{name := Name, class := Class, type := Type}, A) ->
-                       case haystack_node:find(Name, Class, Type) of
+                       case haystack_res:lookup(Name, Class, Type) of
                            not_found ->
                                A#{header => Header#{qr => response,
                                                     rcode => name_error}};
