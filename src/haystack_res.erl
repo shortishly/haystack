@@ -42,6 +42,9 @@ translate(Resource) ->
 resource(#{type := cname, data := Data} = Resource) ->
     label(Resource#{data := haystack_name:labels(Data)});
 
+resource(#{type := aaaa} = Resource) ->
+    label(Resource);
+
 resource(#{type := a} = Resource) ->
     label(Resource).
 

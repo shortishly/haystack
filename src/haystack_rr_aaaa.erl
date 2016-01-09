@@ -16,8 +16,26 @@
 -export([decode/3]).
 -export([encode/4]).
 
-decode(_, <<IP:128>>, _) ->
-    IP.
+decode(_, <<IP1:16,
+            IP2:16,
+            IP3:16,
+            IP4:16,
+            IP5:16,
+            IP6:16,
+            IP7:16,
+            IP8:16>>, _) ->
+    {IP1, IP2, IP3, IP4, IP5, IP6, IP7, IP8}.
 
-encode(IP, _, Packet, Offsets) ->
-    {<<Packet/bytes, IP:128>>, Offsets}.
+
+encode({IP1, IP2, IP3, IP4, IP5, IP6, IP7, IP8}, _, Packet, Offsets) ->
+    {<<
+       Packet/bytes,
+       IP1:16,
+       IP2:16,
+       IP3:16,
+       IP4:16,
+       IP5:16,
+       IP6:16,
+       IP7:16,
+       IP8:16
+     >>, Offsets}.
