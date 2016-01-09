@@ -1,17 +1,17 @@
 # Haystack
 
-Haystack is an automatic HTTP load balancer integrated with
+Haystack is a HTTP load balancer integrated with
 [docker](https://www.docker.com). As containers start or stop they
 are added or removed from the load balancer.
 
 ## Quick Start
 
-Haystack automatically registers and unregisters docker containers
-using [SRV](https://en.wikipedia.org/wiki/SRV_record)
-records. Haystack will automatically connect to Docker using the
-`DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables, and
-register any existing containers, and will continue to regsister (or
-unregister) further containers on that docker host.
+Haystack uses [SRV](https://en.wikipedia.org/wiki/SRV_record) records
+to register docker containers. Haystack connects to Docker using the
+`DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables registering
+any existing containers. Haystack continues to regsister (and
+unregister) further containers as they stop and start.
+
 
 Lets try this out, by starting up Haystack in docker:
 
@@ -23,7 +23,7 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            -d shortishly/haystack:develop
 ```
 
-As an example, lets create a pool of [nginx](https://www.nginx.com) servers:
+As an example, create a pool of [nginx](https://www.nginx.com) servers:
 
 ```shell
 docker run -d -P nginx
@@ -42,8 +42,7 @@ docker run --dns=$(docker inspect --format='{{.NetworkSettings.IPAddress}}' hays
 ```
 
 Haystack will have automatically registered the nginx servers that we
-created earlier. We can confirm this by checking whether they are
-available in our busybox session.
+created earlier. We can confirm this in our busybox session:
 
 ```shell
 nslookup nginx.services.haystack
@@ -51,8 +50,7 @@ nslookup nginx.services.haystack
 
 The DNS service should respond with an IP address for
 `nginx.services.haystack`. Any docker container that exposes a HTTP
-endpoint (on port 80 - as our nginx containers are), will be
-automatically load balanced by Haystack.
+endpoint, will be automatically load balanced by Haystack.
 
 We can test this by making a http request to `nginx.services.haystack`
 and seeing which container responds:
