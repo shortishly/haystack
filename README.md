@@ -20,7 +20,9 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            -e DOCKER_KEY="$(cat ${DOCKER_CERT_PATH}/key.pem)" \
            -e DOCKER_CERT="$(cat ${DOCKER_CERT_PATH}/cert.pem)" \
            --name=haystack \
-           --publish=53:53 \
+           --publish=53:53/udp \
+           --publish=80:80 \
+           --publish=8080:8080 \
            --detach \
            shortishly/haystack:develop
 ```
