@@ -1,4 +1,3 @@
-#-*- mode: makefile-gmake -*-
 # Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-PROJECT = haystack
-PROJECT_DESCRIPTION = Domain Name Service
-PROJECT_VERSION = 0.0.2
-DEPS = gproc recon cowboy gun jsx
-LOCAL_DEPS = crypto inets
-TEST_DEPS = pcapng
+FROM erlang
+MAINTAINER Peter Morgan <peter.james.morgan@gmail.com>
 
-dep_pcapng = git git@github.com:shortishly/pcapng.git master
+ENV TZ=GMT
+ENV CODE_LOADING_MODE=interactive
 
-SHELL_OPTS = \
-	-boot start_sasl \
-	-config dev.config \
-	-name $(PROJECT) \
-	-s $(PROJECT) \
-	-s rb \
-	-sname $(PROJECT)
+ADD . /haystack
+WORKDIR /haystack
+RUN make
 
-include erlang.mk
+EXPOSE 53 80 8080
+
+ENTRYPOINT ["_rel/haystack/bin/haystack"]
+CMD ["foreground"]

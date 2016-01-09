@@ -10,3 +10,8 @@ _rel
 relx
 logs
 .erlang.mk
+db
+xrefr
+*.d
+elvis
+elvis.config

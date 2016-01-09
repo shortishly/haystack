@@ -1,4 +1,3 @@
-%% -*- mode: erlang -*-
 %% Copyright (c) 2012-2015 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,17 +12,12 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-[
- {kernel, [
-           {error_logger, {file, "log/kernel.log"}}
-          ]},
- {sasl, [{sasl_error_logger, {file, "log/sasl.log"}},
-         {error_logger_mf_dir,"log"},
-         {error_logger_mf_maxbytes,10485760},
-         {error_logger_mf_maxfiles, 10},
-         {errlog_type, all}
-        ]},
- {haystack,[{udp_port, 3535},
-            {http_port, 8080},
-            {http_alt_port, 9080}]}
-].
+-module(haystack_rr_txt).
+-export([decode/3]).
+-export([encode/4]).
+
+decode(_, Data, _Packet) ->
+    Data.
+
+encode(Data, _, Packet, Offsets) ->
+    {<<Packet/binary, Data/binary>>, Offsets}.

@@ -1,0 +1,11 @@
+---
+language: erlang
+
+branches:
+  only:
+    - develop
+
+script: make
+
+otp_release:
+  - 18.2
