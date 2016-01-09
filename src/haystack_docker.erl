@@ -301,9 +301,15 @@ name(Image) ->
     case binary:split(Image, <<"/">>) of
         [Image] ->
             Image;
+
         [_, NameVersion] ->
-            [Name, _Version] = binary:split(NameVersion, <<":">>),
-            Name
+            case binary:split(NameVersion, <<":">>) of
+                [Name, _Version] ->
+                    Name;
+
+                [Name] ->
+                    Name
+            end
     end.
 
 event(#{<<"id">> := Id, <<"status">> := <<"stop">>}, State) ->
