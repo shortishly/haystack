@@ -20,14 +20,16 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            -e DOCKER_KEY="$(cat ${DOCKER_CERT_PATH}/key.pem)" \
            -e DOCKER_CERT="$(cat ${DOCKER_CERT_PATH}/cert.pem)" \
            --name=haystack \
-           -d shortishly/haystack:develop
+           --publish=53:53 \
+           --detach \
+           shortishly/haystack:develop
 ```
 
 As an example, create a pool of [nginx](https://www.nginx.com) servers:
 
 ```shell
-docker run -d -P nginx
-docker run -d -P nginx
+docker run --detached --publish-all nginx
+docker run --detached --publish-all nginx
 ```
 
 Start a [busybox](https://www.busybox.net) terminal session with
@@ -35,8 +37,8 @@ Haystack providing the DNS:
 
 ```shell
 docker run --dns=$(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack) \
-           -t \
-           -i \
+           --tty \
+           --interactive \
            --rm busybox \
            /bin/sh
 ```
@@ -89,7 +91,7 @@ Any HTTP service can be automatically load balanced by Haystack. Lets
 try some [Apache HTTP](https://hub.docker.com/_/httpd/) containers:
 
 ```shell
-docker run -d -P httpd
+docker run --detached --publish-all httpd
 ```
 
 Back in the busybox terminal:
@@ -102,7 +104,7 @@ Some services use the alt-HTTP port (8080). Lets try running a
 [Jenkins](https://hub.docker.com/_/jenkins/) service:
 
 ```shell
-docker run -d -P jenkins
+docker run --detached --publish-all jenkins
 ```
 
 Back again in the busybox terminal:

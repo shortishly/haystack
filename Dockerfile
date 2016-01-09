@@ -22,7 +22,7 @@ ADD . /haystack
 WORKDIR /haystack
 RUN make
 
-EXPOSE 53 80
+EXPOSE 53 80 8080
 
 ENTRYPOINT ["_rel/haystack/bin/haystack"]
 CMD ["foreground"]
