@@ -23,10 +23,14 @@
 port(udp) ->
     haystack:get_env(udp_port, [app_env, {default, 53}]);
 port(http) ->
-    haystack:get_env(http_port, [app_env, {default, 80}]).
+    haystack:get_env(http_port, [app_env, {default, 80}]);
+port(http_alt) ->
+    haystack:get_env(http_alt_port, [app_env, {default, 8080}]).
 
 
 acceptors(http) ->
+    100;
+acceptors(http_alt) ->
     100.
 
 tsig_rr_fudge() ->

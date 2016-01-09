@@ -23,9 +23,9 @@
 init(_, _, _) ->
     {upgrade, protocol, cowboy_rest}.
 
-rest_init(Req, []) ->
+rest_init(Req, #{prefix := Prefix}) ->
     {Host, _} = cowboy_req:host(Req),
-    case haystack_node:find(labels(Host), in, srv) of
+    case haystack_node:find(labels(Prefix, Host), in, srv) of
         not_found ->
             {ok, Req, undefined};
 
@@ -36,11 +36,9 @@ rest_init(Req, []) ->
             {ok, Req, #{host => pick_one_from(Matches)}}
     end.
 
-labels(Host) ->
-    prefix() ++ binary:split(Host, <<".">>, [global]).
+labels(Prefix, Host) ->
+    Prefix ++ binary:split(Host, <<".">>, [global]).
 
-prefix() ->
-    [<<"_http">>, <<"_tcp">>].
 
 resource_exists(Req, State) ->
     {false, Req, State}.

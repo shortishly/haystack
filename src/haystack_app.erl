@@ -20,12 +20,9 @@
 
 start(_Type, _Args) ->
     try
-        {ok, _} = cowboy:start_http(?MODULE,
-                                    haystack_config:acceptors(http),
-                                    [{port, haystack_config:port(http)}],
-                                    [{env, [dispatch()]}]),
         {ok, Sup} = haystack_sup:start_link(),
-        {ok, Sup, #{listeners => [?MODULE]}}
+        {ok, Sup, #{listeners => [start_http(http),
+                                  start_http(http_alt)]}}
     catch
         _:Reason ->
             {error, Reason}
@@ -37,13 +34,30 @@ stop(_State) ->
     ok.
 
 
-dispatch() ->
-    {dispatch, cowboy_router:compile(resources())}.
+start_http(Prefix) ->
+    {ok, _} = cowboy:start_http(Prefix,
+                                haystack_config:acceptors(Prefix),
+                                    [{port, haystack_config:port(Prefix)}],
+                                    [{env, [dispatch(Prefix)]}]),
+    Prefix.
 
-resources() ->
+
+dispatch(Prefix) ->
+    {dispatch, cowboy_router:compile(resources(Prefix))}.
+
+
+resources(http) ->
     [{<<"localhost">>,
       [{<<"/zones">>, haystack_zone_resource, []},
        {<<"/secrets">>, haystack_secret_resource, []}]},
 
      {<<":service.", (haystack_config:origin(services))/binary>>,
-      [{'_', haystack_permanently_moved_resource, []}]}].
+      [{'_',
+        haystack_permanently_moved_resource,
+        #{prefix => [<<"_http">>, <<"_tcp">>]}}]}];
+
+resources(http_alt) ->
+    [{<<":service.", (haystack_config:origin(services))/binary>>,
+      [{'_',
+        haystack_permanently_moved_resource,
+        #{prefix => [<<"_http-alt">>, <<"_tcp">>]}}]}].

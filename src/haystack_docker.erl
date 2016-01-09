@@ -233,7 +233,10 @@ register_container(#{<<"Id">> := Id,
                                              binary_to_integer(Public),
                                              Type,
                                              Image,
-                                             docker_name(DockerId))
+                                             docker_name(DockerId));
+
+                      ({PortProtocol, null}) when is_binary(PortProtocol) ->
+                          nop
                   end,
                   Ports),
     State.
@@ -250,13 +253,17 @@ register_container(Id, Private, Public, Type, Image, Origin) ->
         target => Origin
        },
 
-    haystack_node:add(
-      [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
-       <<"_", Type/binary>> | Name],
-      Class,
-      srv,
-      TTL,
-      Data),
+    try
+        haystack_node:add(
+          [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
+           <<"_", Type/binary>> | Name],
+          Class,
+          srv,
+          TTL,
+          Data)
+    catch _:badarg ->
+            no_service_name_for_port
+    end,
 
     ets:insert(?MODULE, [r(Id, Name, Class, srv, TTL, Data)]),
 
@@ -306,8 +313,8 @@ event(#{<<"id">> := Id, <<"status">> := <<"stop">>}, State) ->
 event(#{<<"id">> := Id, <<"status">> := <<"start">>},
       #{name := Name,
         port := Port,
-        certfile := Cert,
-        keyfile := Key} = State) ->
+        cert := Cert,
+        key := Key} = State) ->
 
     URL = binary_to_list(iolist_to_binary(["https://",
                                            Name,
@@ -317,8 +324,8 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
                                            Id,
                                            "/json"])),
     case httpc:request(get, {URL, []},
-                       [{ssl, [{certfile, Cert},
-                               {keyfile, Key}]}],
+                       [{ssl, [{cert, Cert},
+                               {key, Key}]}],
                        [{body_format, binary}]) of
 
         {ok, {{_, 200, _}, _, Body}} ->
@@ -336,8 +343,14 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
                                        State)
             end;
 
-        {error, _Reason} ->
-            whatever
+        {error, Reason} ->
+            error_logger:error_report([{module, ?MODULE},
+                                       {line, ?LINE},
+                                       {reason, Reason},
+                                       {name, Name},
+                                       {port, Port},
+                                       {id, Id},
+                                       {url, URL}])
     end,
     State;
 

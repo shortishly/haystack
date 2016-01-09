@@ -1,8 +1,118 @@
 # Haystack
 
-Haystack is a minimal
-[DNS](https://en.wikipedia.org/wiki/Domain_Name_System) server written
-in [Erlang](http://erlang.org).
+Haystack is an automatic HTTP load balancer integrated with
+[docker](https://www.docker.com). As containers start or stop they
+are added or removed from the load balancer.
+
+## Quick Start
+
+Haystack automatically registers and unregisters docker containers
+using [SRV](https://en.wikipedia.org/wiki/SRV_record)
+records. Haystack will automatically connect to Docker using the
+`DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables, and
+register any existing containers, and will continue to regsister (or
+unregister) further containers on that docker host.
+
+Lets try this out, by starting up Haystack in docker:
+
+```shell
+docker run -e DOCKER_HOST=${DOCKER_HOST} \<br />
+           -e DOCKER_KEY="$(cat ${DOCKER_CERT_PATH}/key.pem)" \<br />
+           -e DOCKER_CERT="$(cat ${DOCKER_CERT_PATH}/cert.pem)" \<br />
+           --name=haystack \<br/>
+           -d shortishly/haystack:develop
+```
+
+As an example, lets create a pool of [nginx](https://www.nginx.com) servers:
+
+```shell
+docker run -d -P nginx
+docker run -d -P nginx
+```
+
+Start a [busybox](https://www.busybox.net) terminal session with
+Haystack providing the DNS:
+
+```shell
+docker run --dns=$(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack) \<br/>
+           -t \<br/>
+           -i \<br/>
+           --rm busybox \<br/>
+           /bin/sh
+```
+
+Haystack will have automatically registered the nginx servers that we
+created earlier. We can confirm this by checking whether they are
+available in our busybox session.
+
+```shell
+nslookup nginx.services.haystack
+```
+
+The DNS service should respond with an IP address for
+`nginx.services.haystack`. Any docker container that exposes a HTTP
+endpoint (on port 80 - as our nginx containers are), will be
+automatically load balanced by Haystack.
+
+We can test this by making a http request to `nginx.services.haystack`
+and seeing which container responds:
+
+```shell
+wget http://nginx.services.haystack
+```
+
+> Connecting to nginx.services.haystack (172.17.0.3:80)
+> Connecting to da393gf.dockers.haystack:32841 (192.168.99.100:32841)
+
+The request to `nginx.services.haystack` is initially handled by the
+Haystack load balancer (in this case on on IP address 172.17.0.3). The
+load balancer will randomly select a container that is providing the
+`nginx` service - in this case the HTTP request is handled by the
+container running on port 32841 on our docker host.
+
+The load balancer will distribute load randomly over the
+containers. Lets try making some more requests:
+
+```shell
+wget http://nginx.services.haystack
+```
+
+> Connecting to nginx.services.haystack (172.17.0.3:80)
+> Connecting to da393gf.dockers.haystack:32829 (192.168.99.100:32829)
+
+This time the Haystack load balancer has randomly chosen the nginx
+container that is running on port 32829. As you add or remove more
+nginx containers from your docker host Haystack will automatically
+update and distribute load accordingly. You can verify this by adding
+some more nginx containers, and stopping some existing ones using the
+appropriate commands in docker.
+
+Any HTTP service can be automatically load balanced by Haystack. Lets
+try some [Apache HTTP](https://hub.docker.com/_/httpd/) containers:
+
+```shell
+docker run -d -P httpd
+```
+
+Back in the busybox terminal:
+
+```shell
+wget http://httpd.services.haystack
+```
+
+Some services use the alt-HTTP port (8080). Lets try running a
+[Jenkins](https://hub.docker.com/_/jenkins/) service:
+
+```shell
+docker run -d -P jenkins
+```
+
+Back again in the busybox terminal:
+
+```shell
+wget http://jenkins.services.haystack:8080/
+```
+
 
 ## Building
 
@@ -20,130 +130,4 @@ To run the release:
 
 ```
 make run
-```
-
-## Service Registration
-
-Haystack will automatically register and unregister docker containers
-using [SRV](https://en.wikipedia.org/wiki/SRV_record)
-records. Haystack will automatically connect to Docker using the
-`DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables, and
-register any existing containers, and will continue to regsister (or
-unregister) further containers as they are created or destroyed on
-that docker host.
-
-Lets try this out, by starting up Haystack:
-
-```shell
-make run
-```
-
-As an example, lets create a pool of [nginx](https://www.nginx.com) servers.
-
-```shell
-dig @localhost -p 3535 _http._tcp.nginx.services.example.test srv
-```
-
-Haystack will automatically register a service record using
-`_http._tcp.nginx` (and also `_https._tcp.nginx`). Lets start a couple
-of nginx servers:
-
-```shell
-docker run -d -P nginx
-docker run -d -P nginx
-```
-
-If you run the above `dig` command again you should see that `SRV`
-records have been automatically created for each nginx instance. You
-can stop (and start again) each container, Haystack will remove and
-add the DNS records for each container.
-
-## Docker
-
-Haystack is available as an automated build from
-[hub.docker.com](https://hub.docker.com/r/shortishly/haystack/). Simply
-use the following commands to run your own Haystack instance:
-
-```
-docker run --name haystack -p 3535:3535/udp -p 8080:8080 -d shortishly/haystack:develop
-```
-
-You can use port 8080 to POST zone records to Haystack, and port 3535
-(UDP) to issue DNS queries or updates.
-
-To upload a zone file to Haystack:
-
-```
-curl -i -H "Content-Type: text/dns" --data-binary @test/haystack_zone_SUITE_data/sample026.zone $(docker-machine ip default):8080/zones
-```
-
-And to query or update records:
-
-```
-dig @$(docker-machine ip default) -p 3535 example.test. soa
-```
-
-
-## Quick start
-
-We will use
-[ddns-confgen](http://ftp.isc.org/isc/bind9/9.9.0rc1/bind-9.9.0rc1/bin/confgen/ddns-confgen.html)
-and [nsupdate](https://en.wikipedia.org/wiki/Nsupdate) to update some
-records in the `example.test` DNS domain.
-
-We need to make Haystack an authority for the `example.test` domain by
-adding a
-[SOA](https://en.wikipedia.org/wiki/List_of_DNS_record_types#SOA)
-record for the `example.test` domain.
-
-```
-curl -i -H "Content-Type: text/dns" --data-binary @test/haystack_zone_SUITE_data/sample026.zone localhost:8080/zones
-```
-
-We can verify that this SOA is now present in Haystack with a simple dig query:
-
-```shell
-dig @localhost -p 3535 example.test soa
-```
-
-We will create a new key that will be used to authorise the
-updates on our registry:
-
-```shell
-ddns-confgen -q -a hmac-md5 -k key.example.test -s example.test>key.example.test
-```
-
-The above command creates a key that will be used by subsequent
-updates to the registry. We will assume that the newly created key is
-as follows:
-
-> key "key.example.test" {<br />
->	algorithm hmac-md5;<br />
->	secret "BriKgwLS0+O8tRXI7au/fw==";<br />
->};<br />
-
-A copy of this key is provided as part of the test suite for Haystack,
-and is used in the following command adding this shared secret to the
-registry:
-
-```shell
-curl -i -H "Content-type: text/plain" --data-binary @test/haystack_secret_SUITE_data/sample001.key localhost:8080/secrets
-```
-
-Using the same secret with `nsupdate` to update the registry:
-
-```shell
-nsupdate -l -p 3535 -k test/haystack_secret_SUITE_data/sample001.key
-```
-> update delete haystack.example.test A<br />
-> update add haystack.example.test 86400 A 10.1.2.3<br />
-> update add haystack.example.test 86400 A 10.1.2.4<br />
-> update add haystack.example.test 86400 A 10.1.2.5<br />
-> send<br />
-> quit<br />
-
-Verify the updates with:
-
-```shell
-dig @localhost -p 3535 haystack.example.test a
 ```

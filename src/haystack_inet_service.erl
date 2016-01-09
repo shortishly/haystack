@@ -61,5 +61,5 @@ lookup(Port, Protocol) ->
         [#?MODULE{service = Service}] ->
             Service;
         [] ->
-            error({badarg, {Port, Protocol}})
+            error(badarg)
     end.
