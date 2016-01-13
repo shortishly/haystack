@@ -81,6 +81,22 @@ init([]) ->
                     {stop, Reason}
             end;
 
+        {ok, #{name := Name,
+               port := Port}} ->
+
+            case gun:open(Name,
+                          Port,
+                          #{transport => tcp}) of
+                {ok, Pid} ->
+                    {ok, #{docker => Pid,
+                           monitor => monitor(process, Pid),
+                           name => Name,
+                           port => Port}};
+
+                {error, Reason} ->
+                    {stop, Reason}
+            end;
+
         {error, Reason} ->
             error_logger:info_report([{module, ?MODULE},
                                       {line, ?LINE},
@@ -165,8 +181,8 @@ connection() ->
         {undefined, _, _, _} ->
             {error, {missing, "DOCKER_HOST"}};
 
-        {_, undefined, undefined, undefined} ->
-            {error, {missing, "DOCKER_CERT_PATH"}};
+        {URI, undefined, undefined, undefined} ->
+            connection(URI);
 
         {_, undefined, _, undefined} ->
             {error, {missing, "DOCKER_KEY"}};
@@ -195,18 +211,29 @@ connection() ->
 connection(URI, Cert, Key) ->
     [{KeyType, Value, _}] = public_key:pem_decode(Key),
     [{_, Certificate, _}] = public_key:pem_decode(Cert),
-    case http_uri:parse(URI) of
-        {ok, {_, _, Name, Port, _, _}} ->
-            {ok, #{name => Name,
-                   cert => Certificate,
-                   key => {KeyType, Value},
-                   port => Port}};
+    case connection(URI) of
+        {ok, Details} ->
+            {ok, Details#{cert => Certificate,
+                          key => {KeyType, Value}}};
+
         {error, _} = Error ->
             Error
     end.
 
+
+connection(URI) ->
+    case http_uri:parse(URI) of
+        {ok, {_, _, Name, Port, _, _}} ->
+            {ok, #{name => Name, port => Port}};
+
+        {error, _} = Error ->
+            Error
+    end.
+
+
 read_file(Path, File) ->
     file:read_file(filename:join(Path, File)).
+
 
 register_container(#{<<"Id">> := Id,
                      <<"Image">> := Image,
@@ -332,6 +359,47 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
     case httpc:request(get, {URL, []},
                        [{ssl, [{cert, Cert},
                                {key, Key}]}],
+                       [{body_format, binary}]) of
+
+        {ok, {{_, 200, _}, _, Body}} ->
+
+            case jsx:decode(Body, [return_maps]) of
+                #{<<"NetworkSettings">> :=  #{<<"Ports">> := null}} ->
+                    nothing_to_register;
+
+                #{<<"Config">> := #{<<"Image">> := Image},
+                  <<"Id">> := Id,
+                  <<"NetworkSettings">> := #{<<"Ports">> := Ports}} ->
+                    register_container(#{<<"Image">> => Image,
+                                         <<"Id">> => Id,
+                                         <<"Ports">> => maps:to_list(Ports)},
+                                       State)
+            end;
+
+        {error, Reason} ->
+            error_logger:error_report([{module, ?MODULE},
+                                       {line, ?LINE},
+                                       {reason, Reason},
+                                       {name, Name},
+                                       {port, Port},
+                                       {id, Id},
+                                       {url, URL}])
+    end,
+    State;
+
+event(#{<<"id">> := Id, <<"status">> := <<"start">>},
+      #{name := Name,
+        port := Port} = State) ->
+
+    URL = binary_to_list(iolist_to_binary(["http://",
+                                           Name,
+                                           ":",
+                                           integer_to_list(Port),
+                                           "/containers/",
+                                           Id,
+                                           "/json"])),
+    case httpc:request(get, {URL, []},
+                       [],
                        [{body_format, binary}]) of
 
         {ok, {{_, 200, _}, _, Body}} ->
