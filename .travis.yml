@@ -13,7 +13,11 @@ script: make
 otp_release:
   - 18.2
 
+
+before_install:
+  - gem install fpm
+  - gem install package_cloud
+
 after_success:
-  docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-  docker build -t shortishly/haystack .
-  docker push shortishly/haystack
+  - bin/package
+  - curl -H "Content-Type: application/json" --data '{"source_type": "Branch", "source_name": "master"}' -X POST https://registry.hub.docker.com/u/shortishly/haystack/trigger/${DOCKER_TRIGGER}/

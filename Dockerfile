@@ -18,9 +18,17 @@ MAINTAINER Peter Morgan <peter.james.morgan@gmail.com>
 ENV TZ=GMT
 ENV CODE_LOADING_MODE=interactive
 
-ADD _rel/haystack /app/
+RUN apt-get update && apt-get install -y \
+    wget
+
+RUN wget --no-check-certificate https://packagecloud.io/install/repositories/shortishly/haystack/script.deb.sh
+RUN chmod u+x script.deb.sh
+RUN ./script.deb.sh
+
+RUN apt-get update && apt-get install -y \
+    haystack
 
 EXPOSE 53 80 8080
 
-ENTRYPOINT ["/app/bin/haystack"]
+ENTRYPOINT ["/opt/haystack/bin/haystack"]
 CMD ["foreground"]
