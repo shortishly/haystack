@@ -25,7 +25,6 @@ dep_pcapng = git git@github.com:shortishly/pcapng.git master
 SHELL_OPTS = \
 	-boot start_sasl \
 	-config dev.config \
-	-name $(PROJECT) \
 	-s $(PROJECT) \
 	-s rb \
 	-sname $(PROJECT)
