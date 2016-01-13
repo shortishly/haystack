@@ -12,17 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-FROM erlang
+FROM ubuntu:precise
 MAINTAINER Peter Morgan <peter.james.morgan@gmail.com>
 
 ENV TZ=GMT
 ENV CODE_LOADING_MODE=interactive
 
-ADD . /haystack
-WORKDIR /haystack
-RUN make
+ADD _rel/haystack /app/
 
 EXPOSE 53 80 8080
 
-ENTRYPOINT ["_rel/haystack/bin/haystack"]
+ENTRYPOINT ["/app/bin/haystack"]
 CMD ["foreground"]

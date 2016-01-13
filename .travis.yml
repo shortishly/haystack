@@ -1,11 +1,20 @@
 ---
+sudo: required
 language: erlang
+
+services:
+  - docker
 
 branches:
   only:
-    - develop
+    - master
 
 script: make
 
 otp_release:
   - 18.2
+
+after_success:
+  docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  docker build -t shortishly/haystack .
+  docker push shortishly/haystack
