@@ -42,3 +42,8 @@ package_cloud yank \
 package_cloud push \
               ${PROJECT}/${DISTRIBUTOR}/${CODENAME} \
               $(bin/app)_$(bin/version)_${ARCH}.deb
+
+curl -H "Content-Type: application/json" \
+     --data '{"source_type": "Branch", "source_name": "master"}' \
+     -X POST \
+     https://registry.hub.docker.com/u/shortishly/haystack/trigger/${DOCKER_TRIGGER}/
