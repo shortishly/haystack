@@ -1,9 +1,6 @@
 ---
 language: erlang
 
-services:
-  - docker
-
 branches:
   only:
     - master
@@ -12,7 +9,6 @@ script: make
 
 otp_release:
   - 18.2
-
 
 before_install:
   - gem install fpm
