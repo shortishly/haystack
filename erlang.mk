@@ -16,7 +16,7 @@
 
 ERLANG_MK_FILENAME := $(realpath $(lastword $(MAKEFILE_LIST)))
 
-ERLANG_MK_VERSION = 2.0.0-pre.2-51-g1ceffe2
+ERLANG_MK_VERSION = 2.0.0-pre.2-71-g1981748
 
 # Core configuration.
 
@@ -418,6 +418,14 @@ pkg_boss_db_homepage = https://github.com/ErlyORM/boss_db
 pkg_boss_db_fetch = git
 pkg_boss_db_repo = https://github.com/ErlyORM/boss_db
 pkg_boss_db_commit = master
+
+PACKAGES += brod
+pkg_brod_name = brod
+pkg_brod_description = Kafka client in Erlang
+pkg_brod_homepage = https://github.com/klarna/brod
+pkg_brod_fetch = git
+pkg_brod_repo = https://github.com/klarna/brod.git
+pkg_brod_commit = master
 
 PACKAGES += bson
 pkg_bson_name = bson
@@ -3539,6 +3547,14 @@ pkg_stripe_fetch = git
 pkg_stripe_repo = https://github.com/mattsta/stripe-erlang
 pkg_stripe_commit = v1
 
+PACKAGES += supervisor3
+pkg_supervisor3_name = supervisor3
+pkg_supervisor3_description = OTP supervisor with additional strategies
+pkg_supervisor3_homepage = https://github.com/klarna/supervisor3
+pkg_supervisor3_fetch = git
+pkg_supervisor3_repo = https://github.com/klarna/supervisor3.git
+pkg_supervisor3_commit = master
+
 PACKAGES += surrogate
 pkg_surrogate_name = surrogate
 pkg_surrogate_description = Proxy server written in erlang. Supports reverse proxy load balancing and forward proxy with http (including CONNECT), socks4, socks5, and transparent proxy modes.
@@ -4125,7 +4141,7 @@ define dep_autopatch2
 		$(call erlang,$(call dep_autopatch_appsrc_script.erl,$(1))); \
 	fi; \
 	$(call erlang,$(call dep_autopatch_appsrc.erl,$(1))); \
-	if [ -f $(DEPS_DIR)/$(1)/rebar.config -o -f $(DEPS_DIR)/$(1)/rebar.config.script ]; then \
+	if [ -f $(DEPS_DIR)/$(1)/rebar -o -f $(DEPS_DIR)/$(1)/rebar.config -o -f $(DEPS_DIR)/$(1)/rebar.config.script ]; then \
 		$(call dep_autopatch_fetch_rebar); \
 		$(call dep_autopatch_rebar,$(1)); \
 	else \
@@ -5078,11 +5094,14 @@ $(if $(filter-out -Werror,$1),\
 		$(shell echo $1 | cut -b 2-)))
 endef
 
+define compat_erlc_opts_to_list
+	[$(call comma_list,$(foreach o,$(call compat_prepare_erlc_opts,$1),$(call compat_convert_erlc_opts,$o)))]
+endef
+
 define compat_rebar_config
 {deps, [$(call comma_list,$(foreach d,$(DEPS),\
 	{$(call dep_name,$d),".*",{git,"$(call dep_repo,$d)","$(call dep_commit,$d)"}}))]}.
-{erl_opts, [$(call comma_list,$(foreach o,$(call compat_prepare_erlc_opts,$(ERLC_OPTS)),\
-	$(call compat_convert_erlc_opts,$o)))]}.
+{erl_opts, $(call compat_erlc_opts_to_list,$(ERLC_OPTS))}.
 endef
 
 $(eval _compat_rebar_config = $$(compat_rebar_config))
@@ -5101,12 +5120,12 @@ MAN_SECTIONS ?= 3 7
 
 docs:: asciidoc
 
-asciidoc: distclean-asciidoc doc-deps asciidoc-guide asciidoc-manual
+asciidoc: asciidoc-guide asciidoc-manual
 
 ifeq ($(wildcard doc/src/guide/book.asciidoc),)
 asciidoc-guide:
 else
-asciidoc-guide:
+asciidoc-guide: distclean-asciidoc doc-deps
 	a2x -v -f pdf doc/src/guide/book.asciidoc && mv doc/src/guide/book.pdf doc/guide.pdf
 	a2x -v -f chunked doc/src/guide/book.asciidoc && mv doc/src/guide/book.chunked/ doc/html/
 endif
@@ -5114,7 +5133,7 @@ endif
 ifeq ($(wildcard doc/src/manual/*.asciidoc),)
 asciidoc-manual:
 else
-asciidoc-manual:
+asciidoc-manual: distclean-asciidoc doc-deps
 	for f in doc/src/manual/*.asciidoc ; do \
 		a2x -v -f manpage $$f ; \
 	done
@@ -5129,7 +5148,7 @@ install-docs:: install-asciidoc
 install-asciidoc: asciidoc-manual
 	for s in $(MAN_SECTIONS); do \
 		mkdir -p $(MAN_INSTALL_PATH)/man$$s/ ; \
-		install -g 0 -o 0 -m 0644 doc/man$$s/*.gz $(MAN_INSTALL_PATH)/man$$s/ ; \
+		install -g `id -u` -o `id -g` -m 0644 doc/man$$s/*.gz $(MAN_INSTALL_PATH)/man$$s/ ; \
 	done
 endif
 
@@ -5897,7 +5916,7 @@ endif
 # Copyright (c) 2013-2015, Loïc Hoguin <essen@ninenines.eu>
 # This file is part of erlang.mk and subject to the terms of the ISC License.
 
-.PHONY: ct distclean-ct
+.PHONY: ct apps-ct distclean-ct
 
 # Configuration.
 
@@ -5932,17 +5951,33 @@ CT_RUN = ct_run \
 	-logdir $(CURDIR)/logs
 
 ifeq ($(CT_SUITES),)
-ct:
+ct: $(if $(IS_APP),,apps-ct)
 else
-ct: test-build
+ct: test-build $(if $(IS_APP),,apps-ct)
 	$(verbose) mkdir -p $(CURDIR)/logs/
 	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS)
+endif
+
+ifneq ($(ALL_APPS_DIRS),)
+apps-ct:
+	$(verbose) for app in $(ALL_APPS_DIRS); do $(MAKE) -C $$app ct IS_APP=1; done
+endif
+
+ifndef t
+CT_EXTRA =
+else
+ifeq (,$(findstring :,$t))
+CT_EXTRA = -group $t
+else
+t_words = $(subst :, ,$t)
+CT_EXTRA = -group $(firstword $(t_words)) -case $(lastword $(t_words))
+endif
 endif
 
 define ct_suite_target
 ct-$(1): test-build
 	$(verbose) mkdir -p $(CURDIR)/logs/
-	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_OPTS)
+	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_EXTRA) $(CT_OPTS)
 endef
 
 $(foreach test,$(CT_SUITES),$(eval $(call ct_suite_target,$(test))))
@@ -6016,57 +6051,19 @@ EDOC_OPTS ?=
 
 # Core targets.
 
-docs:: distclean-edoc edoc
+ifneq ($(wildcard doc/overview.edoc),)
+docs:: edoc
+endif
 
 distclean:: distclean-edoc
 
 # Plugin-specific targets.
 
-edoc: doc-deps
+edoc: distclean-edoc doc-deps
 	$(gen_verbose) $(ERL) -eval 'edoc:application($(PROJECT), ".", [$(EDOC_OPTS)]), halt().'
 
 distclean-edoc:
 	$(gen_verbose) rm -f doc/*.css doc/*.html doc/*.png doc/edoc-info
-
-# Copyright (c) 2015, Erlang Solutions Ltd.
-# This file is part of erlang.mk and subject to the terms of the ISC License.
-
-.PHONY: elvis distclean-elvis
-
-# Configuration.
-
-ELVIS_CONFIG ?= $(CURDIR)/elvis.config
-
-ELVIS ?= $(CURDIR)/elvis
-export ELVIS
-
-ELVIS_URL ?= https://github.com/inaka/elvis/releases/download/0.2.5/elvis
-ELVIS_CONFIG_URL ?= https://github.com/inaka/elvis/releases/download/0.2.5/elvis.config
-ELVIS_OPTS ?=
-
-# Core targets.
-
-help::
-	$(verbose) printf "%s\n" "" \
-		"Elvis targets:" \
-		"  elvis       Run Elvis using the local elvis.config or download the default otherwise"
-
-distclean:: distclean-elvis
-
-# Plugin-specific targets.
-
-$(ELVIS):
-	$(gen_verbose) $(call core_http_get,$(ELVIS),$(ELVIS_URL))
-	$(verbose) chmod +x $(ELVIS)
-
-$(ELVIS_CONFIG):
-	$(verbose) $(call core_http_get,$(ELVIS_CONFIG),$(ELVIS_CONFIG_URL))
-
-elvis: $(ELVIS) $(ELVIS_CONFIG)
-	$(verbose) $(ELVIS) rock -c $(ELVIS_CONFIG) $(ELVIS_OPTS)
-
-distclean-elvis:
-	$(gen_verbose) rm -rf $(ELVIS)
 
 # Copyright (c) 2014 Dave Cottlehuber <dch@skunkwerks.at>
 # This file is part of erlang.mk and subject to the terms of the ISC License.

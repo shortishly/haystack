@@ -1,0 +1,48 @@
+%%-*- mode: erlang -*-
+%% Copyright (c) 2012-2015 Peter Morgan <peter.james.morgan@gmail.com>
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%% http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+
+{application, dns, [
+		    {description, "Domain Name Service"},
+		    {vsn, "0.1.0"},
+		    {id, "git"},
+		    {modules, []},
+		    {registered, []},
+		    {applications, [
+				    kernel,
+				    stdlib,
+				    gproc
+				   ]},
+		    {mod, {dns_application, []}},
+		    {env, [
+			   {port, "3535"},
+			   {resources, #{
+			      1 => #{name => a, decoder => dns_rr_a},
+			      2 => #{name => ns, decoder => dns_rr_ns},
+			      5 => #{name => cname, decoder => dns_rr_cname},
+			      6 => #{name => soa, decoder => dns_rr_soa},
+			      12 => #{name => ptr, decoder => dns_rr_ptr},
+			      15 => #{name => mx, decoder => dns_rr_mx},
+			      16 => #{name => txt, decoder => dns_rr_txt},
+			      28 => #{name => aaaa, decoder => dns_rr_aaaa},
+			      33 => #{name => srv, decoder => dns_rr_srv}
+			     }},
+			   {classes, #{
+			      1 => {in, "the internet"},
+			      2 => {cs, "the CSNET class"},
+			      3 => {ch, "the CHAOS class"},
+			      4 => {hs, "Hesiod"}
+			      }}
+			  ]}
+		   ]}.
