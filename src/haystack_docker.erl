@@ -59,12 +59,12 @@ r(Id, Name, Class, Type, TTL, Data) ->
 
 init([]) ->
     case connection() of
-        {ok, #{name := Name,
+        {ok, #{host := Host,
                port := Port,
                cert := Cert,
                key := Key}} ->
 
-            case gun:open(Name,
+            case gun:open(Host,
                           Port,
                           #{transport => ssl,
                             transport_opts => [{cert, Cert},
@@ -72,7 +72,7 @@ init([]) ->
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            monitor => monitor(process, Pid),
-                           name => Name,
+                           host => Host,
                            port => Port,
                            cert => Cert,
                            key => Key}};
@@ -81,16 +81,16 @@ init([]) ->
                     {stop, Reason}
             end;
 
-        {ok, #{name := Name,
+        {ok, #{host := Host,
                port := Port}} ->
 
-            case gun:open(Name,
+            case gun:open(Host,
                           Port,
                           #{transport => tcp}) of
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            monitor => monitor(process, Pid),
-                           name => Name,
+                           host => Host,
                            port => Port}};
 
                 {error, Reason} ->
@@ -126,16 +126,16 @@ handle_info({gun_down, Gun, http, normal, [], []}, #{docker := Gun} = State) ->
     {noreply, State};
 
 handle_info({gun_data, _, Info, fin, Data},
-            #{info := Info, name := Name} = State) ->
+            #{info := Info, host := Host} = State) ->
     #{<<"ID">> := Id} = jsx:decode(Data, [return_maps]),
 
-    case inet:parse_ipv4_address(Name) of
+    case inet:parse_ipv4_address(Host) of
         {ok, Address} ->
             register_docker(Id, Address);
 
         {error, einval} ->
             {ok,
-             #hostent{h_addr_list = Addresses}} = inet_res:getbyname(Name, a),
+             #hostent{h_addr_list = Addresses}} = inet_res:getbyname(Host, a),
             lists:foreach(fun
                               (Address) ->
                                   register_docker(Id, Address)
@@ -223,8 +223,8 @@ connection(URI, Cert, Key) ->
 
 connection(URI) ->
     case http_uri:parse(URI) of
-        {ok, {_, _, Name, Port, _, _}} ->
-            {ok, #{name => Name, port => Port}};
+        {ok, {_, _, Host, Port, _, _}} ->
+            {ok, #{host => Host, port => Port}};
 
         {error, _} = Error ->
             Error
@@ -237,8 +237,11 @@ read_file(Path, File) ->
 
 register_container(#{<<"Id">> := Id,
                      <<"Image">> := Image,
+                     <<"Names">> := Names,
                      <<"Ports">> := Ports},
                    #{id := DockerId} = State) ->
+
+
     lists:foreach(fun
                       (#{<<"PrivatePort">> := Private,
                          <<"PublicPort">> := Public,
@@ -247,7 +250,7 @@ register_container(#{<<"Id">> := Id,
                                              Private,
                                              Public,
                                              Type,
-                                             Image,
+                                             container_name(Names, Image),
                                              docker_name(DockerId));
 
                       (#{<<"PrivatePort">> := _, <<"Type">> := _}) ->
@@ -259,7 +262,7 @@ register_container(#{<<"Id">> := Id,
                                              binary_to_integer(Private),
                                              binary_to_integer(Public),
                                              Type,
-                                             Image,
+                                             container_name(Names, Image),
                                              docker_name(DockerId));
 
                       ({PortProtocol, null}) when is_binary(PortProtocol) ->
@@ -268,10 +271,26 @@ register_container(#{<<"Id">> := Id,
                   Ports),
     State.
 
+container_name([<<"/", Name/binary>>], Image) ->
+    container_name([Name], Image);
+container_name([Name], Image) ->
+    Common = [name(Image) | labels(haystack_config:origin(services))],
+    try
+        case binary:split(Name, <<"-">>, [global]) of
+            [Prefix, Suffix] ->
+                _ = binary_to_integer(Suffix),
+                [Prefix | Common];
+            [_] ->
+                Common
+        end
+    catch _:badarg ->
+            Common
+    end;
+container_name(_, Image) ->
+    [name(Image) | labels(haystack_config:origin(services))].
 
-register_container(Id, Private, Public, Type, Image, Origin) ->
-    Name = [name(Image) | labels(haystack_config:origin(services))],
 
+register_container(Id, Private, Public, Type, Name, Origin) ->
     Class = in,
     TTL = ttl(),
     Data = #{priority => priority(),
@@ -344,13 +363,13 @@ event(#{<<"id">> := Id, <<"status">> := <<"stop">>}, State) ->
     State;
 
 event(#{<<"id">> := Id, <<"status">> := <<"start">>},
-      #{name := Name,
+      #{host := Host,
         port := Port,
         cert := Cert,
         key := Key} = State) ->
 
     URL = binary_to_list(iolist_to_binary(["https://",
-                                           Name,
+                                           Host,
                                            ":",
                                            integer_to_list(Port),
                                            "/containers/",
@@ -369,9 +388,11 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
 
                 #{<<"Config">> := #{<<"Image">> := Image},
                   <<"Id">> := Id,
+                  <<"Name">> := Name,
                   <<"NetworkSettings">> := #{<<"Ports">> := Ports}} ->
                     register_container(#{<<"Image">> => Image,
                                          <<"Id">> => Id,
+                                         <<"Names">> => [Name],
                                          <<"Ports">> => maps:to_list(Ports)},
                                        State)
             end;
@@ -380,7 +401,7 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
             error_logger:error_report([{module, ?MODULE},
                                        {line, ?LINE},
                                        {reason, Reason},
-                                       {name, Name},
+                                       {host, Host},
                                        {port, Port},
                                        {id, Id},
                                        {url, URL}])
@@ -388,11 +409,11 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
     State;
 
 event(#{<<"id">> := Id, <<"status">> := <<"start">>},
-      #{name := Name,
+      #{host := Host,
         port := Port} = State) ->
 
     URL = binary_to_list(iolist_to_binary(["http://",
-                                           Name,
+                                           Host,
                                            ":",
                                            integer_to_list(Port),
                                            "/containers/",
@@ -410,9 +431,11 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
 
                 #{<<"Config">> := #{<<"Image">> := Image},
                   <<"Id">> := Id,
+                  <<"Name">> := Name,
                   <<"NetworkSettings">> := #{<<"Ports">> := Ports}} ->
                     register_container(#{<<"Image">> => Image,
                                          <<"Id">> => Id,
+                                         <<"Names">> => [Name],
                                          <<"Ports">> => maps:to_list(Ports)},
                                        State)
             end;
@@ -421,7 +444,7 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
             error_logger:error_report([{module, ?MODULE},
                                        {line, ?LINE},
                                        {reason, Reason},
-                                       {name, Name},
+                                       {host, Host},
                                        {port, Port},
                                        {id, Id},
                                        {url, URL}])
