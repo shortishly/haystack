@@ -30,8 +30,8 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
 As an example, create a pool of [nginx](https://www.nginx.com) servers:
 
 ```shell
-docker run --detached --publish-all nginx
-docker run --detached --publish-all nginx
+docker run --detach --publish-all nginx
+docker run --detach --publish-all nginx
 ```
 
 Start a [busybox](https://www.busybox.net) terminal session with

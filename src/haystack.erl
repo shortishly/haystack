@@ -49,7 +49,8 @@ modules() ->
 t() ->
     Modules = [haystack_query, haystack_update, haystack_docker],
     lists:foreach(fun code:ensure_loaded/1, Modules),
-    recon_trace:calls([m(Module) || Module <- Modules], 100, [{scope, local}]).
+    recon_trace:calls([m(Module) || Module <- Modules], 100, [{scope, local},
+                                                              {pid, all}]).
 
 m(Module) ->
     {Module, '_', '_'}.
