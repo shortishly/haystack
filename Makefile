@@ -15,7 +15,7 @@
 #
 PROJECT = haystack
 PROJECT_DESCRIPTION = Domain Name Service
-PROJECT_VERSION = 0.0.4
+PROJECT_VERSION = 0.0.5
 DEPS = gproc recon cowboy gun jsx
 LOCAL_DEPS = crypto inets
 TEST_DEPS = pcapng
