@@ -15,6 +15,8 @@ unregister) further containers as they stop and start.
 
 Lets try this out, by starting up Haystack in docker:
 
+If you are using TLS (recommended):
+
 ```shell
 docker run -e DOCKER_HOST=${DOCKER_HOST} \
            -e DOCKER_KEY="$(cat ${DOCKER_CERT_PATH}/key.pem)" \
@@ -25,6 +27,39 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            --publish=8080:8080 \
            --detach \
            shortishly/haystack
+```
+
+Otherwise without TLS:
+
+```shell
+docker run -e DOCKER_HOST=${DOCKER_HOST} \
+           --name=haystack \
+           --publish=53:53/udp \
+           --publish=80:80 \
+           --publish=8080:8080 \
+           --detach \
+           shortishly/haystack
+```
+
+You may need to ensure that your firewall is allowing access to this
+port. Consult your local documentation, on Fedora you can check
+whether access is enabled via:
+
+```shell
+sudo firewall-cmd --list-ports
+```
+
+When not using TLS it should output something like:
+
+```shell
+2375/tcp
+```
+
+Where 2375 is the TCP port used by Docker. You can quickly open access
+to your Docker daemon via:
+
+```shell
+sudo firewall-cmd --add-port=2375/tcp
 ```
 
 As an example, create a pool of [nginx](https://www.nginx.com) servers:
@@ -114,6 +149,18 @@ Back again in the busybox terminal:
 ```shell
 wget http://jenkins.services.haystack:8080/
 ```
+
+# Maintenance
+
+Haystack runs a SSHD for maintenance or debugging the system. To
+access Haystack you should add your public to the authorised keys that
+Haystack accepts.
+
+```shell
+ssh -p 22022 $(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack)
+```
+
+Use `exit()` to exit from the Haystack shell.
 
 
 ## Building

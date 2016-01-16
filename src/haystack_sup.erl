@@ -17,15 +17,44 @@
 
 -export([init/1]).
 -export([start_link/0]).
+-export([supervisor/1]).
+-export([supervisor/2]).
+-export([supervisor/3]).
+-export([supervisor/4]).
+-export([worker/1]).
+-export([worker/2]).
+-export([worker/3]).
+-export([worker/4]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
     Procs = [worker(haystack_table_owner),
-             worker(haystack_docker),
+             worker(haystack_sshd),
+             supervisor(haystack_docker_sup),
              worker(haystack_udp_request)],
-    {ok, {{one_for_one, 5, 5}, Procs}}.
+    {ok,
+     {#{intensity => 5,
+        period => 5},
+      Procs}}.
+
+supervisor(Module) ->
+    supervisor(Module, permanent).
+
+supervisor(Module, Restart) ->
+    supervisor(Module, Restart, []).
+
+supervisor(Module, Restart, Parameters) ->
+    supervisor(Module, Module, Restart, Parameters).
+
+supervisor(Id, Module, Restart, Parameters) ->
+    #{id => Id,
+      start => {Module, start_link, Parameters},
+      restart => Restart,
+      type => supervisor,
+      shutdown => infinity}.
+
 
 worker(Module) ->
     worker(Module, permanent).
