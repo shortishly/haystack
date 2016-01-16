@@ -72,6 +72,7 @@ init([]) ->
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            monitor => monitor(process, Pid),
+                           partial => <<>>,
                            host => Host,
                            port => Port,
                            cert => Cert,
@@ -90,6 +91,7 @@ init([]) ->
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            monitor => monitor(process, Pid),
+                           partial => <<>>,
                            host => Host,
                            port => Port}};
 
@@ -98,9 +100,9 @@ init([]) ->
             end;
 
         {error, Reason} ->
-            error_logger:info_report([{module, ?MODULE},
-                                      {line, ?LINE},
-                                      {reason, Reason}]),
+            error_logger:error_report([{module, ?MODULE},
+                                       {line, ?LINE},
+                                       {reason, Reason}]),
             ignore
     end.
 
@@ -126,33 +128,58 @@ handle_info({gun_down, Gun, http, normal, [], []}, #{docker := Gun} = State) ->
     {noreply, State};
 
 handle_info({gun_data, _, Info, fin, Data},
-            #{info := Info, host := Host} = State) ->
-    #{<<"ID">> := Id} = jsx:decode(Data, [return_maps]),
+            #{info := Info,
+              partial := Partial,
+              host := Host} = State) ->
+    #{<<"ID">> := Id,
+      <<"SystemTime">> := SystemTime}  = jsx:decode(<<Partial/binary,
+                                                      Data/binary>>,
+                                                    [return_maps]),
+
+    StartTime = haystack_date:seconds_since_epoch(system_time(SystemTime)),
 
     case inet:parse_ipv4_address(Host) of
         {ok, Address} ->
-            register_docker(Id, Address);
+            register_docker(Id, Address),
+            {noreply,
+             maps:without([info], State#{id => Id,
+                                         start_time => StartTime,
+                                         partial => <<>>})};
 
         {error, einval} ->
-            {ok,
-             #hostent{h_addr_list = Addresses}} = inet_res:getbyname(Host, a),
-            lists:foreach(fun
-                              (Address) ->
-                                  register_docker(Id, Address)
-                          end,
-                          Addresses)
-    end,
-    {noreply, maps:without([info], State#{id => Id})};
+            case inet:gethostbyname(Host) of
+                {ok, #hostent{h_addr_list = Addresses}} ->
+                    lists:foreach(fun
+                                      (Address) ->
+                                          register_docker(Id, Address)
+                                  end,
+                                  Addresses),
+                    {noreply,
+                     maps:without([info], State#{id => Id,
+                                                 start_time => StartTime,
+                                                 partial => <<>>})};
+
+                {error, Reason} ->
+                    {stop, Reason, State}
+            end
+    end;
 
 handle_info({gun_data, _, Containers, fin, Data},
-            #{containers := Containers} = State) ->
+            #{containers := Containers,
+              partial := Partial} = State) ->
     {noreply,
      lists:foldl(fun register_container/2,
-                 maps:without([containers], State),
-                 jsx:decode(Data, [return_maps]))};
+                 maps:without([containers], State#{partial => <<>>}),
+                 jsx:decode(<<Partial/binary, Data/binary>>, [return_maps]))};
 
-handle_info({gun_data, _, Events, nofin, Data}, #{events := Events} = State) ->
-    {noreply, event(jsx:decode(Data, [return_maps]), State)};
+handle_info({gun_data, _, Events, nofin, Data},
+            #{partial := Partial,
+              events := Events} = State) ->
+    {noreply,
+     process_events(<<Partial/binary, Data/binary>>, State#{partial => <<>>})};
+
+handle_info({gun_data, _, _, nofin, Data}, #{partial := Partial} = State) ->
+    {noreply, State#{partial => <<Partial/binary, Data/binary>>}};
 
 handle_info({gun_response, _, Info, nofin, 200, _},
             #{info := Info} = State) ->
@@ -240,7 +267,6 @@ register_container(#{<<"Id">> := Id,
                      <<"Names">> := Names,
                      <<"Ports">> := Ports},
                    #{id := DockerId} = State) ->
-
 
     lists:foreach(fun
                       (#{<<"PrivatePort">> := Private,
@@ -358,15 +384,35 @@ name(Image) ->
             end
     end.
 
-event(#{<<"id">> := Id, <<"status">> := <<"stop">>}, State) ->
+
+process_events(Events, State) ->
+    case binary:split(Events, <<"\n">>) of
+        [Event, Remainder] ->
+            process_events(Remainder,
+                           event(jsx:decode(Event, [return_maps]), State));
+
+        [Partial] ->
+            State#{partial => Partial};
+
+        [] ->
+            State#{partial => <<>>}
+    end.
+
+event(#{<<"id">> := Id,
+        <<"time">> := Time,
+        <<"status">> := <<"stop">>},
+      #{start_time := StartTime} = State) when Time > StartTime ->
     unregister_container(Id),
     State;
 
-event(#{<<"id">> := Id, <<"status">> := <<"start">>},
+event(#{<<"id">> := Id,
+        <<"time">> := Time,
+        <<"status">> := <<"start">>} = Event,
       #{host := Host,
         port := Port,
         cert := Cert,
-        key := Key} = State) ->
+        start_time := StartTime,
+        key := Key} = State) when Time > StartTime ->
 
     URL = binary_to_list(iolist_to_binary(["https://",
                                            Host,
@@ -397,6 +443,16 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
                                        State)
             end;
 
+        {ok, {{_, 404, _}, _, _}} ->
+            error_logger:info_report([{module, ?MODULE},
+                                      {line, ?LINE},
+                                      {event, Event},
+                                      {reason, not_found},
+                                      {host, Host},
+                                      {port, Port},
+                                      {id, Id},
+                                      {url, URL}]);
+
         {error, Reason} ->
             error_logger:error_report([{module, ?MODULE},
                                        {line, ?LINE},
@@ -408,9 +464,12 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
     end,
     State;
 
-event(#{<<"id">> := Id, <<"status">> := <<"start">>},
+event(#{<<"id">> := Id,
+        <<"time">> := Time,
+        <<"status">> := <<"start">>} = Event,
       #{host := Host,
-        port := Port} = State) ->
+        start_time := StartTime,
+        port := Port} = State) when Time > StartTime ->
 
     URL = binary_to_list(iolist_to_binary(["http://",
                                            Host,
@@ -440,9 +499,20 @@ event(#{<<"id">> := Id, <<"status">> := <<"start">>},
                                        State)
             end;
 
+        {ok, {{_, 404, _}, _, _}} ->
+            error_logger:info_report([{module, ?MODULE},
+                                      {line, ?LINE},
+                                      {event, Event},
+                                      {reason, not_found},
+                                      {host, Host},
+                                      {port, Port},
+                                      {id, Id},
+                                      {url, URL}]);
+
         {error, Reason} ->
             error_logger:error_report([{module, ?MODULE},
                                        {line, ?LINE},
+                                       {event, Event},
                                        {reason, Reason},
                                        {host, Host},
                                        {port, Port},
@@ -477,3 +547,26 @@ hash(Name) ->
     list_to_binary(
       string:to_lower(
         integer_to_list(erlang:phash2(Name), 26))).
+
+
+%% <<"2016-01-16T11:29:57.061705579Z">>
+system_time(<<Year:4/bytes,
+              "-",
+              Month:2/bytes,
+              "-",
+              Date:2/bytes,
+              "T",
+              Hour:2/bytes,
+              ":",
+              Minute:2/bytes,
+              ":",
+              Second:2/bytes,
+              ".",
+              _:9/bytes,
+              "Z">>) ->
+    {{binary_to_integer(Year),
+      binary_to_integer(Month),
+      binary_to_integer(Date)},
+     {binary_to_integer(Hour),
+      binary_to_integer(Minute),
+      binary_to_integer(Second)}}.
