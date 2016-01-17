@@ -33,7 +33,7 @@ stop() ->
     gen_server:call(?MODULE, stop).
 
 init([]) ->
-    case ssh:daemon(22022, options()) of
+    case ssh:daemon(haystack_config:port(ssh), options()) of
         {ok, Daemon} ->
             {ok, #{daemon => Daemon}};
 

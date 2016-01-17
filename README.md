@@ -25,6 +25,7 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            --publish=53:53/udp \
            --publish=80:80 \
            --publish=8080:8080 \
+           --publish=22022:22 \
            --detach \
            shortishly/haystack
 ```
@@ -37,6 +38,7 @@ docker run -e DOCKER_HOST=${DOCKER_HOST} \
            --publish=53:53/udp \
            --publish=80:80 \
            --publish=8080:8080 \
+           --publish=22022:22 \
            --detach \
            shortishly/haystack
 ```

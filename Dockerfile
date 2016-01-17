@@ -18,7 +18,7 @@ MAINTAINER Peter Morgan <peter.james.morgan@gmail.com>
 ENV TZ=GMT
 ENV CODE_LOADING_MODE=interactive
 
-EXPOSE 53 80 8080
+EXPOSE 22 53 80 8080
 
 VOLUME ["/opt/haystack/priv/ssh"]
 ENTRYPOINT ["/opt/haystack/bin/haystack"]

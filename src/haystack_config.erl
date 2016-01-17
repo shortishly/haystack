@@ -26,7 +26,9 @@ port(udp) ->
 port(http) ->
     haystack:get_env(http_port, [app_env, {default, 80}]);
 port(http_alt) ->
-    haystack:get_env(http_alt_port, [app_env, {default, 8080}]).
+    haystack:get_env(http_alt_port, [app_env, {default, 8080}]);
+port(ssh) ->
+    haystack:get_env(http_alt_port, [app_env, {default, 22}]).
 
 tracing() ->
     list_to_existing_atom(haystack:get_env(haystack_tracing,
