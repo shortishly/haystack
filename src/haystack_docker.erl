@@ -116,16 +116,12 @@ handle_info({gun_data, _, Info, fin, Data},
               partial := Partial,
               host := Host} = State) ->
     #{<<"ID">> := Id,
-      <<"SystemTime">> := SystemTime}  = Response = jsx:decode(<<Partial/binary,
-                                                                 Data/binary>>,
-                                                               [return_maps]),
+      <<"SystemTime">> := SystemTime} = jsx:decode(<<Partial/binary,
+                                                     Data/binary>>,
+                                                   [return_maps]),
 
     StartTime = haystack_date:seconds_since_epoch(
                   haystack_docker_util:system_time(SystemTime)),
-
-    error_logger:info_report([{module, ?MODULE},
-                              {line, ?LINE},
-                              {response, Response}]),
 
     case inet:parse_ipv4_address(Host) of
         {ok, Address} ->
