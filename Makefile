@@ -15,9 +15,23 @@
 #
 PROJECT = haystack
 PROJECT_DESCRIPTION = Domain Name Service
-PROJECT_VERSION = 0.0.5
-DEPS = gproc recon cowboy gun jsx
-LOCAL_DEPS = crypto inets
+PROJECT_VERSION = 0.1.0
+
+DEPS = \
+	cowboy \
+	gproc \
+	gun \
+	jsx \
+	recon
+
+LOCAL_DEPS = \
+	crypto \
+	inets \
+	runtime_tools \
+	sasl \
+	ssh \
+	tools
+
 TEST_DEPS = pcapng
 
 dep_pcapng = git git@github.com:shortishly/pcapng.git master

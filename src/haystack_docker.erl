@@ -11,6 +11,7 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
+
 -module(haystack_docker).
 -behaviour(gen_server).
 
@@ -25,37 +26,19 @@
 -export([init/1]).
 -export([terminate/2]).
 
--on_load(on_load/0).
-
 -include_lib("kernel/include/inet.hrl").
 -include_lib("public_key/include/public_key.hrl").
 
 %% API.
 
+-export_type([id/0]).
+
+-type id() :: <<_:64>>.
+
 -spec start_link() -> {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-
-on_load() ->
-    haystack_table:new(?MODULE, bag).
-
--record(?MODULE, {
-           id,
-           name,
-           class,
-           type,
-           ttl,
-           data
-           }).
-
-r(Id, Name, Class, Type, TTL, Data) ->
-    #?MODULE{id = Id,
-             name = Name,
-             class = Class,
-             type = Type,
-             ttl = TTL,
-             data = Data}.
 
 init([]) ->
     case connection() of
@@ -67,11 +50,12 @@ init([]) ->
             case gun:open(Host,
                           Port,
                           #{transport => ssl,
-                            transport_opts => [{cert, Cert},
-                                               {key, Key}]}) of
+                            transport_opts => haystack_docker_util:ssl(Cert,
+                                                                       Key)}) of
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            monitor => monitor(process, Pid),
+                           partial => <<>>,
                            host => Host,
                            port => Port,
                            cert => Cert,
@@ -90,6 +74,7 @@ init([]) ->
                 {ok, Pid} ->
                     {ok, #{docker => Pid,
                            monitor => monitor(process, Pid),
+                           partial => <<>>,
                            host => Host,
                            port => Port}};
 
@@ -98,9 +83,9 @@ init([]) ->
             end;
 
         {error, Reason} ->
-            error_logger:info_report([{module, ?MODULE},
-                                      {line, ?LINE},
-                                      {reason, Reason}]),
+            error_logger:error_report([{module, ?MODULE},
+                                       {line, ?LINE},
+                                       {reason, Reason}]),
             ignore
     end.
 
@@ -118,6 +103,7 @@ handle_info({gun_up, Gun, http}, #{docker := Gun} = State) ->
     {noreply,
      State#{
        info => gun:get(Gun, "/info"),
+       networks => gun:get(Gun, "/networks"),
        containers => gun:get(Gun, "/containers/json"),
        events => gun:get(Gun, "/events")
       }};
@@ -126,36 +112,70 @@ handle_info({gun_down, Gun, http, normal, [], []}, #{docker := Gun} = State) ->
     {noreply, State};
 
 handle_info({gun_data, _, Info, fin, Data},
-            #{info := Info, host := Host} = State) ->
-    #{<<"ID">> := Id} = jsx:decode(Data, [return_maps]),
+            #{info := Info,
+              partial := Partial,
+              host := Host} = State) ->
+    #{<<"ID">> := Id,
+      <<"SystemTime">> := SystemTime} = jsx:decode(<<Partial/binary,
+                                                     Data/binary>>,
+                                                   [return_maps]),
+
+    StartTime = haystack_date:seconds_since_epoch(
+                  haystack_docker_util:system_time(SystemTime)),
 
     case inet:parse_ipv4_address(Host) of
         {ok, Address} ->
-            register_docker(Id, Address);
+            register_docker_a(Id, Address),
+            {noreply,
+             maps:without([info], State#{id => Id,
+                                         start_time => StartTime,
+                                         partial => <<>>})};
 
         {error, einval} ->
-            {ok,
-             #hostent{h_addr_list = Addresses}} = inet_res:getbyname(Host, a),
-            lists:foreach(fun
-                              (Address) ->
-                                  register_docker(Id, Address)
-                          end,
-                          Addresses)
-    end,
-    {noreply, maps:without([info], State#{id => Id})};
+            case inet:gethostbyname(Host) of
+                {ok, #hostent{h_addr_list = Addresses}} ->
+                    lists:foreach(fun
+                                      (Address) ->
+                                          register_docker_a(Id, Address)
+                                  end,
+                                  Addresses),
+                    {noreply,
+                     maps:without([info], State#{id => Id,
+                                                 start_time => StartTime,
+                                                 partial => <<>>})};
+
+                {error, Reason} ->
+                    {stop, Reason, State}
+            end
+    end;
+
+handle_info({gun_data, _, Networks, fin, Data},
+            #{networks := Networks,
+              partial := Partial} = State) ->
+    haystack_docker_network:process(<<Partial/binary, Data/binary>>),
+    {noreply, maps:without([networks], State#{partial => <<>>})};
 
 handle_info({gun_data, _, Containers, fin, Data},
-            #{containers := Containers} = State) ->
-    {noreply,
-     lists:foldl(fun register_container/2,
-                 maps:without([containers], State),
-                 jsx:decode(Data, [return_maps]))};
+            #{containers := Containers,
+              partial := Partial} = State) ->
+    process_containers(<<Partial/binary, Data/binary>>),
+    {noreply, maps:without([containers], State#{partial => <<>>})};
 
-handle_info({gun_data, _, Events, nofin, Data}, #{events := Events} = State) ->
-    {noreply, event(jsx:decode(Data, [return_maps]), State)};
+handle_info({gun_data, _, Events, nofin, Data},
+            #{partial := Partial,
+              events := Events} = State) ->
+    {noreply,
+     process_events(<<Partial/binary, Data/binary>>, State#{partial => <<>>})};
+
+handle_info({gun_data, _, _, nofin, Data}, #{partial := Partial} = State) ->
+    {noreply, State#{partial => <<Partial/binary, Data/binary>>}};
 
 handle_info({gun_response, _, Info, nofin, 200, _},
             #{info := Info} = State) ->
+    {noreply, State};
+
+handle_info({gun_response, _, Networks, nofin, 200, _},
+            #{networks := Networks} = State) ->
     {noreply, State};
 
 handle_info({gun_response, _, Containers, nofin, 200, _},
@@ -235,245 +255,27 @@ read_file(Path, File) ->
     file:read_file(filename:join(Path, File)).
 
 
-register_container(#{<<"Id">> := Id,
-                     <<"Image">> := Image,
-                     <<"Names">> := Names,
-                     <<"Ports">> := Ports},
-                   #{id := DockerId} = State) ->
+process_containers(Containers) ->
+    haystack_docker_container:process(jsx:decode(Containers, [return_maps])).
 
+process_events(Events, State) ->
+    case binary:split(Events, <<"\n">>) of
+        [Event, Remainder] ->
+            process_events(Remainder,
+                           haystack_docker_event:process(
+                             jsx:decode(Event, [return_maps]), State));
 
-    lists:foreach(fun
-                      (#{<<"PrivatePort">> := Private,
-                         <<"PublicPort">> := Public,
-                         <<"Type">> := Type}) ->
-                          register_container(Id,
-                                             Private,
-                                             Public,
-                                             Type,
-                                             container_name(Names, Image),
-                                             docker_name(DockerId));
+        [Partial] ->
+            State#{partial => Partial};
 
-                      (#{<<"PrivatePort">> := _, <<"Type">> := _}) ->
-                          nop;
-
-                      ({PortProtocol, [#{<<"HostPort">> := Public}]}) ->
-                          [Private, Type] = binary:split(PortProtocol, <<"/">>),
-                          register_container(Id,
-                                             binary_to_integer(Private),
-                                             binary_to_integer(Public),
-                                             Type,
-                                             container_name(Names, Image),
-                                             docker_name(DockerId));
-
-                      ({PortProtocol, null}) when is_binary(PortProtocol) ->
-                          nop
-                  end,
-                  Ports),
-    State.
-
-container_name([<<"/", Name/binary>>], Image) ->
-    container_name([Name], Image);
-container_name([Name], Image) ->
-    Common = [name(Image) | labels(haystack_config:origin(services))],
-    try
-        case binary:split(Name, <<"-">>, [global]) of
-            [Prefix, Suffix] ->
-                _ = binary_to_integer(Suffix),
-                [Prefix | Common];
-            [_] ->
-                Common
-        end
-    catch _:badarg ->
-            Common
-    end;
-container_name(_, Image) ->
-    [name(Image) | labels(haystack_config:origin(services))].
-
-
-register_container(Id, Private, Public, Type, Name, Origin) ->
-    Class = in,
-    TTL = ttl(),
-    Data = #{priority => priority(),
-        weight => weight(),
-        port => Public,
-        target => Origin
-       },
-
-    try
-        haystack_node:add(
-          [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
-           <<"_", Type/binary>> | Name],
-          Class,
-          srv,
-          TTL,
-          Data)
-    catch _:badarg ->
-            no_service_name_for_port
-    end,
-
-    ets:insert(?MODULE, [r(Id, Name, Class, srv, TTL, Data)]),
-
-    lists:foreach(fun
-                      (Address) ->
-                          haystack_node:add(Name, in, a, ttl(), Address)
-                  end,
-                  haystack_inet:getifaddrs(v4)).
-
-
-unregister_container(Id) ->
-    lists:foreach(fun
-                      (#?MODULE{
-                           name = Name,
-                           class = Class,
-                           type = Type,
-                           ttl = TTL,
-                           data = Data
-                          }) ->
-                          haystack_node:remove(Name, Class, Type, TTL, Data)
-                  end,
-                  ets:take(?MODULE, Id)).
-
-
-ttl() ->
-    100.
-
-priority() ->
-    100.
-
-weight() ->
-    100.
-
-name(Image) ->
-    case binary:split(Image, <<"/">>) of
-        [Image] ->
-            Image;
-
-        [_, NameVersion] ->
-            case binary:split(NameVersion, <<":">>) of
-                [Name, _Version] ->
-                    Name;
-
-                [Name] ->
-                    Name
-            end
+        [] ->
+            State#{partial => <<>>}
     end.
 
-event(#{<<"id">> := Id, <<"status">> := <<"stop">>}, State) ->
-    unregister_container(Id),
-    State;
-
-event(#{<<"id">> := Id, <<"status">> := <<"start">>},
-      #{host := Host,
-        port := Port,
-        cert := Cert,
-        key := Key} = State) ->
-
-    URL = binary_to_list(iolist_to_binary(["https://",
-                                           Host,
-                                           ":",
-                                           integer_to_list(Port),
-                                           "/containers/",
-                                           Id,
-                                           "/json"])),
-    case httpc:request(get, {URL, []},
-                       [{ssl, [{cert, Cert},
-                               {key, Key}]}],
-                       [{body_format, binary}]) of
-
-        {ok, {{_, 200, _}, _, Body}} ->
-
-            case jsx:decode(Body, [return_maps]) of
-                #{<<"NetworkSettings">> :=  #{<<"Ports">> := null}} ->
-                    nothing_to_register;
-
-                #{<<"Config">> := #{<<"Image">> := Image},
-                  <<"Id">> := Id,
-                  <<"Name">> := Name,
-                  <<"NetworkSettings">> := #{<<"Ports">> := Ports}} ->
-                    register_container(#{<<"Image">> => Image,
-                                         <<"Id">> => Id,
-                                         <<"Names">> => [Name],
-                                         <<"Ports">> => maps:to_list(Ports)},
-                                       State)
-            end;
-
-        {error, Reason} ->
-            error_logger:error_report([{module, ?MODULE},
-                                       {line, ?LINE},
-                                       {reason, Reason},
-                                       {host, Host},
-                                       {port, Port},
-                                       {id, Id},
-                                       {url, URL}])
-    end,
-    State;
-
-event(#{<<"id">> := Id, <<"status">> := <<"start">>},
-      #{host := Host,
-        port := Port} = State) ->
-
-    URL = binary_to_list(iolist_to_binary(["http://",
-                                           Host,
-                                           ":",
-                                           integer_to_list(Port),
-                                           "/containers/",
-                                           Id,
-                                           "/json"])),
-    case httpc:request(get, {URL, []},
-                       [],
-                       [{body_format, binary}]) of
-
-        {ok, {{_, 200, _}, _, Body}} ->
-
-            case jsx:decode(Body, [return_maps]) of
-                #{<<"NetworkSettings">> :=  #{<<"Ports">> := null}} ->
-                    nothing_to_register;
-
-                #{<<"Config">> := #{<<"Image">> := Image},
-                  <<"Id">> := Id,
-                  <<"Name">> := Name,
-                  <<"NetworkSettings">> := #{<<"Ports">> := Ports}} ->
-                    register_container(#{<<"Image">> => Image,
-                                         <<"Id">> => Id,
-                                         <<"Names">> => [Name],
-                                         <<"Ports">> => maps:to_list(Ports)},
-                                       State)
-            end;
-
-        {error, Reason} ->
-            error_logger:error_report([{module, ?MODULE},
-                                       {line, ?LINE},
-                                       {reason, Reason},
-                                       {host, Host},
-                                       {port, Port},
-                                       {id, Id},
-                                       {url, URL}])
-    end,
-    State;
-
-event(_, State) ->
-    State.
-
-labels(DomainName) ->
-    binary:split(DomainName, <<".">>, [global]).
-
-register_docker(Name, Address) ->
+register_docker_a(Id, Address) ->
     haystack_node:add(
-      docker_name(Name),
+      haystack_docker_util:docker_id(Id),
       in,
       a,
-      ttl(),
+      haystack_docker_util:ttl(),
       Address).
-
-docker_name(Name) ->
-      labels(<<
-               "d",
-               (hash(Name))/binary,
-               ".",
-               (haystack_config:origin(dockers))/binary
-             >>).
-
-hash(Name) ->
-    list_to_binary(
-      string:to_lower(
-        integer_to_list(erlang:phash2(Name), 26))).

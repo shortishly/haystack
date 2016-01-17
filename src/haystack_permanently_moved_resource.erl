@@ -57,6 +57,8 @@ moved_permanently(Req, State) ->
     {false, Req, State}.
 
 
+pick_one_from(#{data := #{target := Labels, port := 80}}) ->
+    <<(join_the_dots(Labels))/binary>>;
 pick_one_from(#{data := #{target := Labels, port := Port}}) ->
     <<(join_the_dots(Labels))/binary, ":", (integer_to_binary(Port))/binary>>;
 pick_one_from(Matches) ->

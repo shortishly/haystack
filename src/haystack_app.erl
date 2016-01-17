@@ -51,7 +51,7 @@ resources(http) ->
       [{<<"/zones">>, haystack_zone_resource, []},
        {<<"/secrets">>, haystack_secret_resource, []}]},
 
-     {<<":service.", (haystack_config:origin(services))/binary>>,
+     {<<"[...].", (haystack_config:origin(services))/binary>>,
       [{'_',
         haystack_permanently_moved_resource,
         #{prefix => [<<"_http">>, <<"_tcp">>]}}]}];

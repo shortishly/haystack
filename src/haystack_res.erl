@@ -42,6 +42,9 @@ translate(Resource) ->
     resource(maps:from_list(inet_dns:rr(Resource))).
 
 
+resource(#{type := ptr, data := Data} = Resource) ->
+    label(maps:without([data], Resource#{name := haystack_name:labels(Data)}));
+
 resource(#{type := cname, data := Data} = Resource) ->
     label(Resource#{data := haystack_name:labels(Data)});
 
