@@ -15,7 +15,7 @@
 #
 PROJECT = haystack
 PROJECT_DESCRIPTION = Domain Name Service
-PROJECT_VERSION = 0.0.5
+PROJECT_VERSION = 0.1.0
 
 DEPS = \
 	cowboy \
