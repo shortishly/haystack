@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2015 Peter Morgan <peter.james.morgan@gmail.com>
+%% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@
 
 
 start() ->
-    application:ensure_all_started(?MODULE).
+    application:ensure_all_started(?MODULE),
+    t(haystack_config:tracing()).
 
 
 make() ->
@@ -39,18 +40,31 @@ get_env(Key, Strategy) ->
 get_env(Key) ->
     gproc:get_env(l, ?MODULE, Key).
 
+
 ensure_loaded() ->
     lists:foreach(fun code:ensure_loaded/1, modules()).
 
+
 modules() ->
     {ok, Modules} = application:get_key(?MODULE, modules),
-    Modules.
+    [Module || Module <- Modules, member_of(Module)].
+
+member_of(Module) ->
+    hd(string:tokens(atom_to_list(Module), "_")) =:= atom_to_list(?MODULE).
+
 
 t() ->
-    Modules = [haystack_query, haystack_update, haystack_docker],
-    lists:foreach(fun code:ensure_loaded/1, Modules),
-    recon_trace:calls([m(Module) || Module <- Modules], 100, [{scope, local},
-                                                              {pid, all}]).
+    t(true).
+
+t(true) ->
+    lists:foreach(fun code:ensure_loaded/1, modules()),
+    recon_trace:calls([m(Module) || Module <- modules()],
+                      {1000, 500},
+                      [{scope, local},
+                       {pid, all}]);
+t(false) ->
+    nop.
+
 
 m(Module) ->
     {Module, '_', '_'}.

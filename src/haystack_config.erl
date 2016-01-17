@@ -17,6 +17,7 @@
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
+-export([tracing/0]).
 -export([tsig_rr_fudge/0]).
 
 
@@ -26,6 +27,10 @@ port(http) ->
     haystack:get_env(http_port, [app_env, {default, 80}]);
 port(http_alt) ->
     haystack:get_env(http_alt_port, [app_env, {default, 8080}]).
+
+tracing() ->
+    list_to_existing_atom(haystack:get_env(haystack_tracing,
+                                           [os_env, {default, "false"}])).
 
 
 acceptors(http) ->
@@ -40,7 +45,10 @@ origin(services) ->
     <<"services.", (origin())/binary>>;
 
 origin(dockers) ->
-    <<"dockers.", (origin())/binary>>.
+    <<"dockers.", (origin())/binary>>;
+
+origin(containers) ->
+    <<"containers.", (origin())/binary>>.
 
 origin() ->
     <<"haystack">>.
