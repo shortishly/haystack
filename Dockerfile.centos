@@ -20,6 +20,7 @@ ENV CODE_LOADING_MODE=interactive
 
 EXPOSE 53 80 8080 22022
 
+VOLUME ["/opt/haystack/priv/ssh"]
 ENTRYPOINT ["/opt/haystack/bin/haystack"]
 CMD ["foreground"]
 

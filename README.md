@@ -69,6 +69,18 @@ docker run --detach --publish-all nginx
 docker run --detach --publish-all nginx
 ```
 
+Sometimes it is necessary to group a bunch of services - lets create a
+`web` group too:
+
+```shell
+docker run --detach --publish-all --name web-001 nginx
+docker run --detach --publish-all --name web-002 nginx
+```
+
+Haystack will automatically load balance services that are part of a
+group. A group is identified by its name, followed by a dash and then
+a number.
+
 Start a [busybox](https://www.busybox.net) terminal session with
 Haystack providing the DNS:
 
@@ -124,6 +136,16 @@ update and distribute load accordingly. You can verify this by adding
 some more nginx containers, and stopping some existing ones using the
 appropriate commands in docker.
 
+We can also load balance over the `web` group that we created earlier
+by using:
+
+```shell
+wget http://web.nginx.services.haystack
+```
+
+You'll notice that your HTTP requests are being handled by a different
+set of nginx servers compared to those previously above.
+
 Any HTTP service can be automatically load balanced by Haystack. Lets
 try some [Apache HTTP](https://hub.docker.com/_/httpd/) containers:
 
@@ -153,12 +175,19 @@ wget http://jenkins.services.haystack:8080/
 # Maintenance
 
 Haystack runs a SSHD for maintenance or debugging the system. To
-access Haystack you should add your public to the authorised keys that
-Haystack accepts.
+access Haystack you should add your public key to the authorised keys
+that Haystack accepts.
 
 ```shell
 ssh -p 22022 $(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack)
 ```
+
+Tracing for Haystack can be enabled via:
+```shell
+haystack:trace(true).
+```
+
+Using `false` will disable tracing.
 
 Use `exit()` to exit from the Haystack shell.
 

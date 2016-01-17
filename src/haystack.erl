@@ -22,13 +22,14 @@
 -export([priv_file/1]).
 -export([priv_read_file/1]).
 -export([start/0]).
--export([t/0]).
+-export([trace/0]).
+-export([trace/1]).
 
 
 
 start() ->
     application:ensure_all_started(?MODULE),
-    t(haystack_config:tracing()).
+    trace(haystack_config:tracing()).
 
 
 make() ->
@@ -53,17 +54,17 @@ member_of(Module) ->
     hd(string:tokens(atom_to_list(Module), "_")) =:= atom_to_list(?MODULE).
 
 
-t() ->
-    t(true).
+trace() ->
+    trace(true).
 
-t(true) ->
+trace(true) ->
     lists:foreach(fun code:ensure_loaded/1, modules()),
     recon_trace:calls([m(Module) || Module <- modules()],
                       {1000, 500},
                       [{scope, local},
                        {pid, all}]);
-t(false) ->
-    nop.
+trace(false) ->
+    recon_trace:clear().
 
 
 m(Module) ->

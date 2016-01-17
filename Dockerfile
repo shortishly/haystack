@@ -18,10 +18,19 @@ MAINTAINER Peter Morgan <peter.james.morgan@gmail.com>
 ENV TZ=GMT
 ENV CODE_LOADING_MODE=interactive
 
+EXPOSE 53 80 8080
+
+VOLUME ["/opt/haystack/priv/ssh"]
+ENTRYPOINT ["/opt/haystack/bin/haystack"]
+CMD ["foreground"]
+
 RUN apt-get update && apt-get install -y \
     wget
 
-RUN wget --no-check-certificate https://packagecloud.io/install/repositories/shortishly/haystack/script.deb.sh
+RUN wget \
+    --no-check-certificate \
+    https://packagecloud.io/install/repositories/shortishly/haystack/script.deb.sh
+
 RUN chmod u+x script.deb.sh
 RUN ./script.deb.sh
 
@@ -29,8 +38,3 @@ RUN apt-get update && apt-get install -y \
     haystack
 
 RUN rm -rf /var/lib/apt/lists/*
-
-EXPOSE 53 80 8080
-
-ENTRYPOINT ["/opt/haystack/bin/haystack"]
-CMD ["foreground"]
