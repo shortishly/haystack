@@ -14,6 +14,7 @@
 
 -module(haystack_config).
 -export([acceptors/1]).
+-export([enabled/1]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
@@ -28,7 +29,10 @@ port(http) ->
 port(http_alt) ->
     haystack:get_env(http_alt_port, [app_env, {default, 8080}]);
 port(ssh) ->
-    haystack:get_env(http_alt_port, [app_env, {default, 22}]).
+    haystack:get_env(ssh_port, [app_env, {default, 22}]).
+
+enabled(ssh) ->
+    haystack:get_env(ssh_enabled, [app_env, {default, true}]).
 
 tracing() ->
     list_to_existing_atom(haystack:get_env(haystack_tracing,

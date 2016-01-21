@@ -71,7 +71,13 @@ m(Module) ->
     {Module, '_', '_'}.
 
 priv_dir() ->
-    code:priv_dir(?MODULE).
+    case code:priv_dir(?MODULE) of
+        {error, bad_name} ->
+            error(badarg);
+
+        Filename ->
+            Filename
+    end.
 
 priv_file(Filename) ->
     filename:join(priv_dir(), Filename).
