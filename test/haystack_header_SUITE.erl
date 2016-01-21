@@ -26,6 +26,11 @@ groups() ->
 
 
 init_per_suite(Config) ->
+    ok = application:load(haystack),
+    application:set_env(haystack, udp_port, 3535),
+    application:set_env(haystack, http_port, 8181),
+    application:set_env(haystack, http_alt_port, 8282),
+    application:set_env(haystack, ssh_enabled, false),
     {ok, _} = application:ensure_all_started(haystack),
     Config.
 

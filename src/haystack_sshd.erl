@@ -15,31 +15,39 @@
 -module(haystack_sshd).
 -behaviour(gen_server).
 
--export([start_link/0]).
--export([stop/0]).
-
-
 -export([code_change/3]).
--export([handle_info/2]).
 -export([handle_call/3]).
 -export([handle_cast/2]).
+-export([handle_info/2]).
 -export([init/1]).
+-export([start_link/0]).
+-export([stop/0]).
 -export([terminate/2]).
+
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+
 stop() ->
     gen_server:call(?MODULE, stop).
 
-init([]) ->
-    case ssh:daemon(haystack_config:port(ssh), options()) of
-        {ok, Daemon} ->
-            {ok, #{daemon => Daemon}};
 
-        {error, _} = Error ->
-            {stop, Error, undefined}
+init([]) ->
+    case haystack_config:enabled(ssh) of
+        true ->
+            case ssh:daemon(haystack_config:port(ssh), options()) of
+                {ok, Daemon} ->
+                    {ok, #{daemon => Daemon}};
+
+                {error, _} = Error ->
+                    {stop, Error, undefined}
+            end;
+
+        false ->
+            ignore
     end.
+
 
 options() ->
     [{inet, inet},
