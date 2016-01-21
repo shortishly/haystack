@@ -28,8 +28,7 @@
 
 
 start() ->
-    application:ensure_all_started(?MODULE),
-    trace(haystack_config:tracing()).
+    application:ensure_all_started(?MODULE).
 
 
 make() ->
@@ -59,10 +58,15 @@ trace() ->
 
 trace(true) ->
     lists:foreach(fun code:ensure_loaded/1, modules()),
-    recon_trace:calls([m(Module) || Module <- modules()],
-                      {1000, 500},
-                      [{scope, local},
-                       {pid, all}]);
+    case recon_trace:calls([m(Module) || Module <- modules()],
+                           {1000, 500},
+                           [{scope, local},
+                            {pid, all}]) of
+        Matches when Matches > 0 ->
+            ok;
+        _ ->
+            error
+    end;
 trace(false) ->
     recon_trace:clear().
 

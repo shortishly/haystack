@@ -181,8 +181,19 @@ access Haystack you should add your public key to the authorised keys
 that Haystack accepts.
 
 ```shell
-ssh -p 22022 $(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack)
+ssh -p 22022 \
+    $(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack)
 ```
+
+If you are using `docker-machine`:
+
+```shell
+ssh -p 22022 $(docker-machine ip dev)
+```
+
+Where `dev` is the name of your `docker-machine` environment that you
+are using.
+
 
 Tracing for Haystack can be enabled via:
 ```shell
