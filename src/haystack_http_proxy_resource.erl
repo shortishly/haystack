@@ -20,17 +20,22 @@
 -export([terminate/3]).
 
 
-init(_Transport, Req, #{prefix := Prefix, balancer := Balancer}) ->
+init(_Transport, Req, #{prefix := Prefix,
+                        balancer := Balancer}) when is_atom(Balancer) ->
     {Host, _} = cowboy_req:host(Req),
-    case Balancer:pick(<<Prefix/binary, Host/binary>>) of
-        not_found ->
-            {ok, Req, undefined};
+    balancer(Balancer:pick(<<Prefix/binary, Host/binary>>), Req);
 
-        #{host := Endpoint, port := Port} ->
-            {ok, Origin} = gun:open(Endpoint, Port, #{transport => tcp}),
-            {loop, Req, #{origin => Origin,
-                          monitor => erlang:monitor(process, Origin)}}
-    end.
+init(_Transport, Req, #{prefix := Prefix,
+                        balancer := Balancer}) when is_function(Balancer) ->
+    {Host, _} = cowboy_req:host(Req),
+    balancer(Balancer(<<Prefix/binary, Host/binary>>), Req).
+
+balancer(not_found, Req) ->
+    {ok, Req, undefined};
+balancer(#{host := Endpoint, port := Port}, Req) ->
+    {ok, Origin} = gun:open(Endpoint, Port, #{transport => tcp}),
+    {loop, Req, #{origin => Origin,
+                  monitor => erlang:monitor(process, Origin)}}.
 
 
 info({gun_data, _, _, nofin, Data}, Req, State) ->
