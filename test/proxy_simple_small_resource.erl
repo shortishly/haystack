@@ -12,13 +12,12 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
--module(proxy_simple_resource).
+-module(proxy_simple_small_resource).
 
 -export([init/2]).
 
-init(Req, #{filename := Filename} = State) ->
-    {ok, Body} = file:read_file(Filename),
+init(Req, State) ->
     Req2 = cowboy_req:reply(200, [
                                   {<<"content-type">>, <<"text/plain">>}
-                                 ], Body, Req),
+                                 ], <<"Hello world!">>, Req),
     {ok, Req2, State}.

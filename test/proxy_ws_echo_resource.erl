@@ -12,13 +12,15 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
--module(proxy_simple_resource).
+-module(proxy_ws_echo_resource).
 
 -export([init/2]).
+-export([websocket_handle/3]).
 
-init(Req, #{filename := Filename} = State) ->
-    {ok, Body} = file:read_file(Filename),
-    Req2 = cowboy_req:reply(200, [
-                                  {<<"content-type">>, <<"text/plain">>}
-                                 ], Body, Req),
-    {ok, Req2, State}.
+
+init(Req, _) ->
+    {cowboy_websocket, Req, undefined}.
+
+
+websocket_handle({text, Msg}, Req, State) ->
+    {reply, {text, Msg}, Req, State}.

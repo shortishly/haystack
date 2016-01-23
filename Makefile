@@ -34,7 +34,8 @@ LOCAL_DEPS = \
 
 TEST_DEPS = pcapng
 
-dep_pcapng = git git@github.com:shortishly/pcapng.git master
+dep_pcapng = git https://github.com/shortishly/pcapng.git master
+dep_cowboy = git https://github.com/ninenines/cowboy.git master
 
 SHELL_OPTS = \
 	-boot start_sasl \

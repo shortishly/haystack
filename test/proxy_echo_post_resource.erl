@@ -12,13 +12,16 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
--module(proxy_simple_resource).
+-module(proxy_echo_post_resource).
 
 -export([init/2]).
 
-init(Req, #{filename := Filename} = State) ->
-    {ok, Body} = file:read_file(Filename),
-    Req2 = cowboy_req:reply(200, [
-                                  {<<"content-type">>, <<"text/plain">>}
-                                 ], Body, Req),
-    {ok, Req2, State}.
+init(Req0, State) ->
+    case cowboy_req:body(Req0) of
+        {ok, Body, Req1} ->
+            Req2 = cowboy_req:reply(
+                     200, [
+                           {<<"content-type">>, <<"text/plain">>}
+                          ], Body, Req1),
+            {ok, Req2, State}
+    end.

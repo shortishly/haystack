@@ -13,9 +13,9 @@
 %% limitations under the License.
 
 -module(haystack_balance_random).
--export([pick/1]).
+-export([pick/2]).
 
-pick(Hostname) ->
+pick(Hostname, Path) ->
     case haystack_node:find(haystack_name:labels(Hostname), in, srv) of
         not_found ->
             not_found;
@@ -24,7 +24,7 @@ pick(Hostname) ->
             random:seed(erlang:phash2(node()),
                         erlang:monotonic_time(),
                         erlang:unique_integer()),
-            pick_one_from(Matches)
+            (pick_one_from(Matches))#{path => Path}
     end.
 
 pick_one_from(#{data := #{target := Target, port := Port}}) ->

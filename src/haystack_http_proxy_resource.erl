@@ -16,75 +16,123 @@
 
 
 -export([info/3]).
--export([init/3]).
+-export([init/2]).
 -export([terminate/3]).
+-export([websocket_handle/3]).
+-export([websocket_info/3]).
 
 
-init(_Transport, Req, #{prefix := Prefix,
-                        balancer := Balancer}) when is_atom(Balancer) ->
-    {Host, _} = cowboy_req:host(Req),
-    balancer(Balancer:pick(<<Prefix/binary, Host/binary>>), Req);
+init(Req, #{balancer := Balancer} = State) when is_atom(Balancer) ->
+    init(Req, State#{balancer := fun Balancer:pick/2});
 
-init(_Transport, Req, #{prefix := Prefix,
-                        balancer := Balancer}) when is_function(Balancer) ->
-    {Host, _} = cowboy_req:host(Req),
-    balancer(Balancer(<<Prefix/binary, Host/binary>>), Req).
+init(Req0, #{prefix := Prefix, balancer := Balancer} = State) ->
+    case Balancer(<<
+                     Prefix/binary,
+                     (cowboy_req:host(Req0))/binary
+                   >>,
+                   cowboy_req:path(Req0)) of
 
-balancer(not_found, Req) ->
-    {ok, Req, undefined};
-balancer(#{host := Endpoint, port := Port}, Req) ->
-    {ok, Origin} = gun:open(Endpoint, Port, #{transport => tcp}),
-    {loop, Req, #{origin => Origin,
-                  monitor => erlang:monitor(process, Origin)}}.
+        not_found ->
+            Req1 = cowboy_req:reply(404,
+                                    [<<"content-type">>,
+                                     <<"text/plain">>],
+                                    "Not found.", Req0),
+            {stop, Req1, undefined};
 
+        #{host := Endpoint, port := Port, path := Path} ->
+            {ok, Origin} = gun:open(Endpoint, Port, #{transport => tcp}),
+            Monitor = erlang:monitor(process, Origin),
+
+            case cowboy_req:parse_header(<<"upgrade">>, Req0) of
+                undefined ->
+                    {cowboy_loop,
+                     Req0,
+                     State#{origin => Origin,
+                            monitor => Monitor,
+                            path => Path}};
+
+                [<<"websocket">>] ->
+                    {cowboy_websocket,
+                     Req0,
+                     State#{origin => Origin,
+                            monitor => Monitor,
+                            path => Path}}
+            end
+    end.
+
+info({gun_up, Origin, _}, Req0, #{path := Path, origin := Origin} = State) ->
+    {ok,
+     Req0,
+     maybe_request_body(Req0,
+                        State#{
+                          request => gun:request(
+                                       Origin,
+                                       cowboy_req:method(Req0),
+                                       Path,
+                                       cowboy_req:headers(Req0))})};
 
 info({gun_data, _, _, nofin, Data}, Req, State) ->
     case cowboy_req:chunk(Data, Req) of
         ok ->
-            {loop, Req, State};
+            {ok, Req, State};
 
         {error, _} ->
-            {ok, Req, State}
+            {stop, Req, State}
     end;
 
 info({gun_data, _, _, fin, Data}, Req, State) ->
     cowboy_req:chunk(Data, Req),
-    {ok, Req, State};
+    {stop, Req, State};
 
-info({gun_response, _, _, nofin, Status, Headers}, Req1, State) ->
-    {ok, Req2} = cowboy_req:chunked_reply(Status, Headers, Req1),
-    {loop, Req2, State};
+info({gun_response, _, _, nofin, Status, Headers}, Req0, State) ->
+    Req1 = cowboy_req:chunked_reply(Status, Headers, Req0),
+    {ok, Req1, State};
 
-info({gun_response, _, _, fin, Status, Headers}, Req1, State) ->
-    {ok, Req2} = cowboy_req:reply(Status, Headers, Req1),
-    {ok, Req2, State};
-
-info({gun_up, Origin, http}, Req1, #{origin := Origin} = State) ->
-    {Path, Req2} = cowboy_req:path(Req1),
-    {Headers, Req3} = cowboy_req:headers(Req2),
-    {Method, Req4} =  cowboy_req:method(Req3),
-    {loop,
-     Req4,
-     maybe_request_body(Req4,
-                        State#{request => gun:request(Origin,
-                                                      Method, Path, Headers)})};
+info({gun_response, _, _, fin, Status, Headers}, Req0, State) ->
+    Req1 = cowboy_req:reply(Status, Headers, Req0),
+    {stop, Req1, State};
 
 info({request_body, #{complete := Data}}, Req, #{origin := Origin,
                                                  request := Request} = State) ->
     gun:data(Origin, Request, fin, Data),
-    {loop, Req, State};
+    {ok, Req, State};
 
 info({request_body, #{more := More}}, Req, #{origin := Origin,
                                              request := Request} = State) ->
     gun:data(Origin, Request, nofin, More),
-    {loop, Req, request_body(Req, State)};
+    {ok, Req, request_body(Req, State)};
 
 info({'DOWN', Monitor, _, _, _}, Req, #{monitor := Monitor} = State) ->
+    {stop, Req, State}.
+
+
+terminate(_Reason, _Req, #{origin := Origin, monitor := Monitor}) ->
+    erlang:demonitor(Monitor),
+    gun:close(Origin);
+terminate(_Reason, _Req, _) ->
+    ok.
+
+websocket_info({gun_up, Origin, _},
+               Req,
+               #{path := Path, origin := Origin} = State) ->
+    gun:ws_upgrade(Origin, Path),
+    {ok, Req, State};
+
+websocket_info({gun_ws_upgrade, _, _,  _}, Req, State) ->
+    {ok, Req, State};
+
+websocket_info({gun_ws, _, Frame}, Req, State) ->
+    {reply, Frame, Req, State};
+
+websocket_info({gun_response, _, _, nofin, _, _}, Req, State) ->
+    {ok, Req, State};
+
+websocket_info({gun_response, _, _, fin, _, _}, Req, State) ->
     {ok, Req, State}.
 
-
-terminate(_Reason, _Req, #{origin := Origin}) ->
-    gun:close(Origin).
+websocket_handle(Frame, Req, #{origin := Origin} = State) ->
+    gun:ws_send(Origin, Frame),
+    {ok, Req, State}.
 
 
 maybe_request_body(Req, State) ->
