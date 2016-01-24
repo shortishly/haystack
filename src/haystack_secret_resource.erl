@@ -17,15 +17,11 @@
 -export([allowed_methods/2]).
 -export([content_types_accepted/2]).
 -export([from_text_plain/2]).
--export([init/3]).
--export([rest_init/2]).
+-export([init/2]).
 
 
-init(_, _, _) ->
-    {upgrade, protocol, cowboy_rest}.
-
-rest_init(Req, []) ->
-    {ok, Req, undefined}.
+init(Req, _) ->
+    {cowboy_rest, Req, undefined}.
 
 allowed_methods(Req, State) ->
     {[<<"POST">>], Req, State}.

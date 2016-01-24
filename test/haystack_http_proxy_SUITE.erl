@@ -18,31 +18,20 @@
 -compile(export_all).
 
 all() ->
-        [{group, samples}].
+    [{group, samples}].
 
 groups() ->
     [{samples, [sequence], common:all(?MODULE)}].
 
-init_per_suite(C0) ->
+init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(inets),
     {ok, _} = application:ensure_all_started(cowboy),
     {ok, _} = application:ensure_all_started(gun),
-    Port = 8888,
-    C1 = [{http_port, Port} | C0],
     {ok, _} = cowboy:start_http(?MODULE,
-                                10,
-                                [{port, Port}],
-                                [{env, [dispatch(C1)]}]),
-    lists:foreach(fun code:ensure_loaded/1, modules()),
-    C1.
-
-
-modules() ->
-    [proxy_echo_post_resource,
-     proxy_simple_resource,
-     proxy_simple_small_resource,
-     proxy_ws_echo_resource,
-     haystack_http_proxy_resource].
+                                       10,
+                                       [{port, 0}],
+                                       [{env, [dispatch(Config)]}]),
+    Config.
 
 end_per_suite(_Config) ->
     cowboy:stop_listener(?MODULE),
@@ -53,8 +42,8 @@ end_per_suite(_Config) ->
 data_dir(Config) ->
     ?config(data_dir, Config).
 
-http_port(Config) ->
-    ?config(http_port, Config).
+http_port() ->
+    ranch_server:get_port(?MODULE).
 
 gun(Config) ->
     ?config(gun, Config).
@@ -79,20 +68,20 @@ resources(Config) ->
        {<<"/proxy/[...]">>,
         haystack_http_proxy_resource,
         #{prefix => <<>>,
-          balancer => balancer(Config)}}]}].
+          balancer => balancer()}}]}].
 
-balancer(Config) ->
+balancer() ->
     fun(Host, <<"/proxy/", Path/binary>>) ->
             #{host => binary_to_list(Host),
               path => <<"/", Path/binary>>,
-              port => http_port(Config)}
+              port => http_port()}
     end.
 
-simple_test(Config) ->
+simple_test(_Config) ->
     {ok,
      {{_, 200, _},
       _,
-      <<"Hello world!">>}} = request(get, Config, "/proxy/sample/simple"),
+      <<"Hello world!">>}} = request(get, "/proxy/sample/simple"),
     ok.
 
 mad_barbara(Config) ->
@@ -112,7 +101,7 @@ mad_barbara_test(Config) ->
     {ok,
      {{_, 200, _},
       _,
-      MadBarbara}} = request(get, Config, "/proxy/sample/mad_barbara"),
+      MadBarbara}} = request(get, "/proxy/sample/mad_barbara"),
     ok.
 
 war_and_peace_test(Config) ->
@@ -120,17 +109,17 @@ war_and_peace_test(Config) ->
     {ok,
      {{_, 200, _},
       _,
-      WarAndPeace}} = request(get, Config, "/proxy/sample/war_and_peace"),
+      WarAndPeace}} = request(get, "/proxy/sample/war_and_peace"),
     ok.
 
 
-echo_hello_world_test(Config) ->
+echo_hello_world_test(_Config) ->
     tracing(),
     HelloWorld = <<"Hello world!">>,
     {ok,
      {{_, 200, _},
       _,
-      HelloWorld}} = request(post, Config, "/proxy/do/echo", HelloWorld),
+      HelloWorld}} = request(post, "/proxy/do/echo", HelloWorld),
     ok.
 
 
@@ -139,12 +128,14 @@ echo_lorem_ipsum_5k_test(Config) ->
     {ok,
      {{_, 200, _},
       _,
-      LoremIpsum}} = request(post, Config, "/proxy/do/echo", LoremIpsum),
+      LoremIpsum}} = request(post, "/proxy/do/echo", LoremIpsum),
     ok.
 
-ws_echo_test(Config) ->
+ws_echo_test(_Config) ->
     tracing(),
-    {ok, Gun} = gun:open("127.0.0.1", http_port(Config), #{transport => tcp}),
+    {ok, Gun} = gun:open("127.0.0.1",
+                         http_port(),
+                         #{transport => tcp}),
     gun:await_up(Gun),
     gun:ws_upgrade(Gun, "/proxy/do/ws/echo"),
     receive
@@ -158,7 +149,7 @@ ws_echo_test(Config) ->
     gun:ws_send(Gun, {text, Message}),
     receive
         {gun_ws, Gun, {text, Message}} ->
-            ok
+            ct:log("message echod ~p", [Message])
 
     after 5000 ->
             error(timeout)
@@ -166,27 +157,35 @@ ws_echo_test(Config) ->
 
 
 tracing() ->
+    lists:foreach(fun code:ensure_loaded/1, modules()),
     (recon_trace:calls([m(Module) || Module <- modules()],
                        {1000, 500},
                        [{scope, local},
                         {pid, all}]) > 0) orelse error({debug, no_match}).
 
+modules() ->
+    [proxy_echo_post_resource,
+     proxy_simple_resource,
+     proxy_simple_small_resource,
+     proxy_ws_echo_resource,
+     haystack_http_proxy_resource].
+
 m(Module) ->
     {Module, '_', '_'}.
 
 
-request(get, Config, URL) ->
+request(get, URL) ->
     httpc:request(get,
                   {"http://127.0.0.1:" ++
-                       integer_to_list(http_port(Config)) ++
+                       integer_to_list(http_port()) ++
                        URL, []},
                   [],
                   [{body_format, binary}]).
 
-request(post, Config, URL, Body) ->
+request(post, URL, Body) ->
     httpc:request(post,
                   {"http://127.0.0.1:" ++
-                       integer_to_list(http_port(Config)) ++
+                       integer_to_list(http_port()) ++
                        URL,
                    [],
                   "text/plain",

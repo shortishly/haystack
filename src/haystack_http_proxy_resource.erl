@@ -112,27 +112,46 @@ terminate(_Reason, _Req, #{origin := Origin, monitor := Monitor}) ->
 terminate(_Reason, _Req, _) ->
     ok.
 
+websocket_info({'DOWN', Monitor, _, _, _},
+               Req,
+               #{monitor := Monitor} = State) ->
+    {stop, Req, State};
+
 websocket_info({gun_up, Origin, _},
                Req,
                #{path := Path, origin := Origin} = State) ->
     gun:ws_upgrade(Origin, Path),
     {ok, Req, State};
 
-websocket_info({gun_ws_upgrade, _, _,  _}, Req, State) ->
-    {ok, Req, State};
+websocket_info({gun_ws_upgrade, Origin, ok, _},
+               Req,
+               #{origin := Origin,
+                 ws_send_backlog := Frames} = State) ->
+    gun:ws_send(Origin, lists:reverse(Frames)),
+    {ok, Req, maps:without([ws_send_backlog], State#{ws_upgrade => handshake})};
 
-websocket_info({gun_ws, _, Frame}, Req, State) ->
+websocket_info({gun_ws_upgrade, _, _,  _}, Req, State) ->
+    {ok, Req, State#{ws_upgrade => handshake}};
+
+websocket_info({gun_ws, Origin, Frame}, Req, #{origin := Origin} = State) ->
     {reply, Frame, Req, State};
 
 websocket_info({gun_response, _, _, nofin, _, _}, Req, State) ->
     {ok, Req, State};
 
 websocket_info({gun_response, _, _, fin, _, _}, Req, State) ->
-    {ok, Req, State}.
+    {stop, Req, State}.
 
-websocket_handle(Frame, Req, #{origin := Origin} = State) ->
+websocket_handle(Frame, Req, #{origin := Origin,
+                               ws_upgrade := handshake} = State) ->
     gun:ws_send(Origin, Frame),
-    {ok, Req, State}.
+    {ok, Req, State};
+
+websocket_handle(Frame, Req, #{ws_send_backlog := Backlog} = State) ->
+    {ok, Req, State#{ws_send_backlog := [Frame | Backlog]}};
+
+websocket_handle(Frame, Req, State) ->
+    {ok, Req, State#{ws_send_backlog => [Frame]}}.
 
 
 maybe_request_body(Req, State) ->
