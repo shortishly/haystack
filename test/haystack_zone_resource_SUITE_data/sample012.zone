@@ -1,0 +1,3 @@
+example.com.  IN  MX    10 mail.example.com.  ; mail.example.com is the mailserver for example.com
+@             IN  MX    20 mail2.example.com. ; equivalent to above line, "@" represents zone origin
+@             IN  MX    50 mail3              ; equivalent to above line, but using a relative host name

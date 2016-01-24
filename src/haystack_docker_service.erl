@@ -24,67 +24,139 @@
            class :: atom(),
            type :: atom(),
            ttl :: pos_integer(),
-           data :: term()
+           priority :: pos_integer(),
+           weight :: pos_integer(),
+           port :: pos_integer(),
+           target :: list(binary())
           }).
 
-on_load() ->
-    haystack_table:reuse(?MODULE).
 
-r(Id, Name, Class, Type, TTL, Data) ->
+on_load() ->
+    haystack_table:reuse(?MODULE, bag).
+
+
+r(Id, Name, Class, Type, TTL, Priority, Weight, Port, Target) ->
     #?MODULE{id = Id,
              name = Name,
              class = Class,
              type = Type,
              ttl = TTL,
-             data = Data}.
+             priority = Priority,
+             weight = Weight,
+             port = Port,
+             target = Target}.
+
 
 add(Id, Private, Type, Name, Origin) ->
     Class = in,
     TTL = haystack_docker_util:ttl(),
-    Data = #{priority => priority(),
-        weight => weight(),
-        port => Private,
-        target => Origin
-       },
 
     try
-        haystack_node:add(
-          [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
-           <<"_", Type/binary>> | Name],
-          Class,
-          srv,
-          TTL,
-          Data),
+        add_srv(Name, Class, Type, TTL, priority(), weight(), Private, Origin),
 
-        ets:insert(?MODULE, [r(Id, Name, Class, srv, TTL, Data)]),
+        ets:insert(?MODULE,
+                   [r(Id,
+                      Name,
+                      Class,
+                      Type,
+                      TTL,
+                      priority(),
+                      weight(),
+                      Private,
+                      Origin)]),
 
-        lists:foreach(fun
-                          (Address) ->
-                              haystack_node:add(Name, in, a, TTL, Address)
-                      end,
-                      haystack_inet:getifaddrs(v4))
+        lists:foreach(
+          fun
+              (Address) ->
+                  haystack_node:add(Name, in, a, TTL, Address)
+          end,
+          haystack_inet:getifaddrs(v4))
     catch _:badarg ->
             no_service_name_for_port
     end.
 
 
 remove(Id) ->
-    lists:foreach(fun
-                      (#?MODULE{
-                           name = Name,
-                           class = Class,
-                           type = Type,
-                           ttl = TTL,
-                           data = Data
-                          }) ->
-                          haystack_node:remove(Name, Class, Type, TTL, Data)
-                  end,
-                  ets:take(?MODULE, Id)).
+    lists:foldl(
+      fun
+          (#?MODULE{
+               name = Name,
+               class = Class,
+               type = Type,
+               ttl = TTL,
+               priority = Priority,
+               weight = Weight,
+               port = Private,
+               target = Target
+              }, []) ->
+
+              case ets:match_object(
+                     ?MODULE,
+                     r('_', Name, '_', '_', '_', '_', '_', '_', '_')) of
+
+                  [] ->
+                      lists:foreach(
+                        fun
+                            (Address) ->
+                                haystack_node:remove(Name, in, a, TTL, Address)
+                        end,
+                        haystack_inet:getifaddrs(v4));
+
+                  _ ->
+                      nop
+              end,
+              remove_srv(
+                Name, Class, Type, TTL, Priority, Weight, Private, Target);
+
+          (#?MODULE{
+               name = Name,
+               class = Class,
+               type = Type,
+               ttl = TTL,
+               priority = Priority,
+               weight = Weight,
+               port = Private,
+               target = Target
+              }, _) ->
+              remove_srv(
+                Name, Class, Type, TTL, Priority, Weight, Private, Target)
+      end,
+      [],
+      ets:take(?MODULE, Id)).
+
+
+remove_srv(Name, Class, Type, TTL, Priority, Weight, Private, Target) ->
+    haystack_node:remove(
+      [<<"_", (haystack_inet_service:lookup(Private,Type))/binary>>,
+       <<"_", Type/binary>> | Name],
+      Class,
+      srv,
+      TTL,
+      #{priority => Priority,
+        weight => Weight,
+        port => Private,
+        target => Target
+       }).
+
+
+add_srv(Name, Class, Type, TTL, Priority, Weight, Private, Target) ->
+    haystack_node:add(
+      [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
+       <<"_", Type/binary>> | Name],
+      Class,
+      srv,
+      TTL,
+      #{priority => Priority,
+        weight => Weight,
+        port => Private,
+        target => Target
+       }).
 
 
 
 priority() ->
     100.
+
 
 weight() ->
     100.

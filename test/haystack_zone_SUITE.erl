@@ -18,7 +18,7 @@
 -compile(export_all).
 
 all() ->
-        [{group, samples}].
+    [{group, samples}].
 
 groups() ->
     [{samples, [parallel], common:all(?MODULE)}].

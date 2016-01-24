@@ -16,7 +16,7 @@
 
 ERLANG_MK_FILENAME := $(realpath $(lastword $(MAKEFILE_LIST)))
 
-ERLANG_MK_VERSION = 2.0.0-pre.2-71-g1981748
+ERLANG_MK_VERSION = 2.0.0-pre.2-78-g06e9fbf
 
 # Core configuration.
 
@@ -4346,9 +4346,9 @@ define dep_autopatch_rebar.erl
 		[] -> ok;
 		_ ->
 			Write("\npre-app::\n\t$$\(MAKE) -f c_src/Makefile.erlang.mk\n"),
-			PortSpecWrite(io_lib:format("ERL_CFLAGS = -finline-functions -Wall -fPIC -I ~s/erts-~s/include -I ~s\n",
+			PortSpecWrite(io_lib:format("ERL_CFLAGS = -finline-functions -Wall -fPIC -I \\"~s/erts-~s/include\\" -I \\"~s\\"\n",
 				[code:root_dir(), erlang:system_info(version), code:lib_dir(erl_interface, include)])),
-			PortSpecWrite(io_lib:format("ERL_LDFLAGS = -L ~s -lerl_interface -lei\n",
+			PortSpecWrite(io_lib:format("ERL_LDFLAGS = -L \\"~s\\" -lerl_interface -lei\n",
 				[code:lib_dir(erl_interface, lib)])),
 			[PortSpecWrite(["\n", E, "\n"]) || E <- OsEnv],
 			FilterEnv = fun(Env) ->
@@ -5095,7 +5095,7 @@ $(if $(filter-out -Werror,$1),\
 endef
 
 define compat_erlc_opts_to_list
-	[$(call comma_list,$(foreach o,$(call compat_prepare_erlc_opts,$1),$(call compat_convert_erlc_opts,$o)))]
+[$(call comma_list,$(foreach o,$(call compat_prepare_erlc_opts,$1),$(call compat_convert_erlc_opts,$o)))]
 endef
 
 define compat_rebar_config
@@ -5645,6 +5645,7 @@ ifeq ($(PLATFORM),msys2)
 # We hardcode the compiler used on MSYS2. The default CC=cc does
 # not produce working code. The "gcc" MSYS2 package also doesn't.
 	CC = /mingw64/bin/gcc
+	export CC
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 else ifeq ($(PLATFORM),darwin)
@@ -5955,12 +5956,18 @@ ct: $(if $(IS_APP),,apps-ct)
 else
 ct: test-build $(if $(IS_APP),,apps-ct)
 	$(verbose) mkdir -p $(CURDIR)/logs/
-	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS)
+	$(gen_verbose) $(CT_RUN) -sname ct_$(PROJECT) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS)
 endif
 
 ifneq ($(ALL_APPS_DIRS),)
-apps-ct:
-	$(verbose) for app in $(ALL_APPS_DIRS); do $(MAKE) -C $$app ct IS_APP=1; done
+define ct_app_target
+apps-ct-$1:
+	$(MAKE) -C $1 ct IS_APP=1
+endef
+
+$(foreach app,$(ALL_APPS_DIRS),$(eval $(call ct_app_target,$(app))))
+
+apps-ct: $(addprefix apps-ct-,$(ALL_APPS_DIRS))
 endif
 
 ifndef t
@@ -5977,7 +5984,7 @@ endif
 define ct_suite_target
 ct-$(1): test-build
 	$(verbose) mkdir -p $(CURDIR)/logs/
-	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_EXTRA) $(CT_OPTS)
+	$(gen_verbose) $(CT_RUN) -sname ct_$(PROJECT) -suite $(addsuffix _SUITE,$(1)) $(CT_EXTRA) $(CT_OPTS)
 endef
 
 $(foreach test,$(CT_SUITES),$(eval $(call ct_suite_target,$(test))))
@@ -6184,8 +6191,9 @@ eunit: test-build
 	$(gen_verbose) $(call erlang,$(call eunit.erl,fun $(t)/0),$(EUNIT_ERL_OPTS))
 endif
 else
-EUNIT_EBIN_MODS = $(notdir $(basename $(call core_find,ebin/,*.beam)))
-EUNIT_TEST_MODS = $(notdir $(basename $(call core_find,$(TEST_DIR)/,*.beam)))
+EUNIT_EBIN_MODS = $(notdir $(basename $(ERL_FILES) $(BEAM_FILES)))
+EUNIT_TEST_MODS = $(notdir $(basename $(call core_find,$(TEST_DIR)/,*.erl)))
+
 EUNIT_MODS = $(foreach mod,$(EUNIT_EBIN_MODS) $(filter-out \
 	$(patsubst %,%_tests,$(EUNIT_EBIN_MODS)),$(EUNIT_TEST_MODS)),'$(mod)')
 

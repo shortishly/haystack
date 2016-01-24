@@ -1,4 +1,4 @@
-%% Copyright (c) 2016 Peter Morgan <peter.james.morgan@gmail.com>
+%% Copyright (c) 2011-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -13,19 +13,14 @@
 %% limitations under the License.
 
 -module(haystack_permanently_moved_resource).
--export([init/3]).
+-export([init/2]).
 -export([moved_permanently/2]).
 -export([previously_existed/2]).
 -export([resource_exists/2]).
--export([rest_init/2]).
 
 
-init(_, _, _) ->
-    {upgrade, protocol, cowboy_rest}.
-
-rest_init(Req, #{prefix := Prefix}) ->
-    {Host, _} = cowboy_req:host(Req),
-    case haystack_node:find(labels(Prefix, Host), in, srv) of
+init(Req, #{prefix := Prefix}) ->
+    case haystack_node:find(labels(Prefix, cowboy_req:host(Req)), in, srv) of
         not_found ->
             {ok, Req, undefined};
 
@@ -33,7 +28,7 @@ rest_init(Req, #{prefix := Prefix}) ->
             random:seed(erlang:phash2(node()),
                         erlang:monotonic_time(),
                         erlang:unique_integer()),
-            {ok, Req, #{host => pick_one_from(Matches)}}
+            {cowboy_rest, Req, #{host => pick_one_from(Matches)}}
     end.
 
 labels(Prefix, Host) ->
@@ -51,8 +46,11 @@ previously_existed(Req, State) ->
 
 
 moved_permanently(Req, #{host := Host} = State) ->
-    {Path, _} = cowboy_req:path(Req),
-    {{true, <<"http://", Host/binary, Path/binary>>}, Req, State};
+    {{true, <<
+              "http://",
+              Host/binary,
+              (cowboy_req:path(Req))/binary
+            >>}, Req, State};
 moved_permanently(Req, State) ->
     {false, Req, State}.
 

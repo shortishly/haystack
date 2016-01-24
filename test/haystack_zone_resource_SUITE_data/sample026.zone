@@ -1,0 +1,17 @@
+$ORIGIN example.test.
+$TTL 5m
+@       IN SOA ns hostmaster.example.test (
+              2016010107
+              1d
+              2h
+              4w
+              1h)
+        IN NS ns
+        IN MX 10 mail1
+        IN MX 20 mail2
+        IN MX 30 mail3
+        IN A 10.1.2.3
+www     IN CNAME example.com.
+mail1   IN A 10.2.1.1
+mail2   IN A 10.2.1.2
+mail3   IN A 10.2.1.3

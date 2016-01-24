@@ -14,6 +14,7 @@
 
 -module(haystack_config).
 -export([acceptors/1]).
+-export([enabled/1]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
@@ -22,13 +23,19 @@
 
 
 port(udp) ->
-    haystack:get_env(udp_port, [app_env, {default, 53}]);
+    get_env(udp_port, 53);
 port(http) ->
-    haystack:get_env(http_port, [app_env, {default, 80}]);
+    get_env(http_port, 80);
 port(http_alt) ->
-    haystack:get_env(http_alt_port, [app_env, {default, 8080}]);
+    get_env(http_alt_port, 8080);
 port(ssh) ->
-    haystack:get_env(http_alt_port, [app_env, {default, 22}]).
+    get_env(ssh_port, 22).
+
+enabled(ssh) ->
+    get_env(ssh_enabled, true).
+
+get_env(Name, Default) ->
+    haystack:get_env(Name, [app_env, {default, Default}]).
 
 tracing() ->
     list_to_existing_atom(haystack:get_env(haystack_tracing,

@@ -20,37 +20,46 @@
 -record(?MODULE, {
            port_protocol,
            service
-        }).
+          }).
 
 on_load() ->
     haystack_table:new(?MODULE, bag),
-    {ok, Services} = haystack:priv_read_file("service-names-port-numbers.csv"),
-    ets:insert(?MODULE,
-               lists:foldl(fun(Row, A) ->
-                                 case binary:split(Row, <<",">>, [global]) of
+    try
+        {ok, Services} = haystack:priv_read_file(
+                           "service-names-port-numbers.csv"),
 
-                                     [_] ->
-                                         A;
+        ets:insert(?MODULE,
+                   lists:foldl(fun(Row, A) ->
+                                       case binary:split(
+                                              Row, <<",">>, [global]) of
 
-                                     [<<>> | _] ->
-                                         A;
+                                           [_] ->
+                                               A;
 
-                                     [<<"www", _/binary>> | _] ->
-                                         A;
+                                           [<<>> | _] ->
+                                               A;
 
-                                     [Service, Port, Protocol | _] ->
-                                         try
-                                             [r(Service,
-                                                binary_to_integer(Port),
-                                                Protocol) | A]
-                                         catch _:badarg ->
-                                                 A
-                                         end
-                                 end
-                           end,
-                           [],
-                           tl(binary:split(Services, <<"\r\n">>, [global])))),
-               ok.
+                                           [<<"www", _/binary>> | _] ->
+                                               A;
+
+                                           [Service, Port, Protocol | _] ->
+                                               try
+                                                   [r(Service,
+                                                      binary_to_integer(Port),
+                                                      Protocol) | A]
+                                               catch _:badarg ->
+                                                       A
+                                               end
+                                       end
+                               end,
+                               [],
+                               tl(binary:split(Services,
+                                               <<"\r\n">>,
+                                               [global])))),
+        ok
+    catch _:badarg ->
+            ok
+    end.
 
 r(Service, Port, Protocol) ->
     #?MODULE{port_protocol = {Port, Protocol},

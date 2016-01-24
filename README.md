@@ -64,19 +64,30 @@ to your Docker daemon via:
 sudo firewall-cmd --add-port=2375/tcp
 ```
 
-As an example, create a pool of [nginx](https://www.nginx.com) servers:
+As an example, lets create a pool of [nginx](https://www.nginx.com)
+servers - each one is serving HTTP content from its own directory so
+that we can see Haystack load balancing over the containers.
 
 ```shell
-docker run --detach --publish-all nginx
-docker run --detach --publish-all nginx
+mkdir a b c d
+
+echo a>a/index.html
+echo b>b/index.html
+echo c>c/index.html
+echo d>d/index.html
+
+docker run -v $(pwd)/a:/usr/share/nginx/html:ro -d nginx
+docker run -v $(pwd)/b:/usr/share/nginx/html:ro -d nginx
+docker run -v $(pwd)/c:/usr/share/nginx/html:ro -d nginx
+docker run -v $(pwd)/d:/usr/share/nginx/html:ro -d nginx
 ```
 
 Sometimes it is necessary to group a bunch of services - lets create a
 `web` group too:
 
 ```shell
-docker run --detach --publish-all --name web-001 nginx
-docker run --detach --publish-all --name web-002 nginx
+docker run --detach --name web-001 nginx
+docker run --detach --name web-002 nginx
 ```
 
 Haystack will automatically load balance services that are part of a
@@ -109,40 +120,30 @@ We can test this by making a http request to `nginx.services.haystack`
 and seeing which container responds:
 
 ```shell
-wget http://nginx.services.haystack
+# wget -q -O /dev/stdout http://nginx.services.haystack
+c
+# wget -q -O /dev/stdout http://nginx.services.haystack
+a
+# wget -q -O /dev/stdout http://nginx.services.haystack
+b
+# wget -q -O /dev/stdout http://nginx.services.haystack
+c
+# wget -q -O /dev/stdout http://nginx.services.haystack
+b
+# wget -q -O /dev/stdout http://nginx.services.haystack
+d
 ```
 
-> Connecting to nginx.services.haystack (172.17.0.3:80)<br />
-> Connecting to da393gf.dockers.haystack:32841 (192.168.99.100:32841)
-
-The request to `nginx.services.haystack` is initially handled by the
-Haystack load balancer (in this case on on IP address 172.17.0.3). The
-load balancer will randomly select a container that is providing the
-`nginx` service - in this case the HTTP request is handled by the
-container running on port 32841 on our docker host.
-
-The load balancer will distribute load randomly over the
-containers. Lets try making some more requests:
-
-```shell
-wget http://nginx.services.haystack
-```
-
-> Connecting to nginx.services.haystack (172.17.0.3:80)<br />
-> Connecting to da393gf.dockers.haystack:32829 (192.168.99.100:32829)
-
-This time the Haystack load balancer has randomly chosen the nginx
-container that is running on port 32829. As you add or remove more
-nginx containers from your docker host Haystack will automatically
-update and distribute load accordingly. You can verify this by adding
-some more nginx containers, and stopping some existing ones using the
-appropriate commands in docker.
+You can stop/kill one or more of the nginx containers above and
+Haystack will automatically load balance over the remaining
+containers. Haystack will remove `nginx.services.haystack` from its
+DNS when the last nginx container is gone.
 
 We can also load balance over the `web` group that we created earlier
 by using:
 
 ```shell
-wget http://web.nginx.services.haystack
+wget -q -O /dev/stdout http://web.nginx.services.haystack
 ```
 
 You'll notice that your HTTP requests are being handled by a different
@@ -152,7 +153,7 @@ Any HTTP service can be automatically load balanced by Haystack. Lets
 try some [Apache HTTP](https://hub.docker.com/_/httpd/) containers:
 
 ```shell
-docker run --detached --publish-all httpd
+docker run --detached httpd
 ```
 
 Back in the busybox terminal:
@@ -165,7 +166,7 @@ Some services use the alt-HTTP port (8080). Lets try running a
 [Jenkins](https://hub.docker.com/_/jenkins/) service:
 
 ```shell
-docker run --detached --publish-all jenkins
+docker run --detached jenkins
 ```
 
 Back again in the busybox terminal:
@@ -181,8 +182,19 @@ access Haystack you should add your public key to the authorised keys
 that Haystack accepts.
 
 ```shell
-ssh -p 22022 $(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack)
+ssh -p 22022 \
+    $(docker inspect --format='{{.NetworkSettings.IPAddress}}' haystack)
 ```
+
+If you are using `docker-machine`:
+
+```shell
+ssh -p 22022 $(docker-machine ip dev)
+```
+
+Where `dev` is the name of your `docker-machine` environment that you
+are using.
+
 
 Tracing for Haystack can be enabled via:
 ```shell
