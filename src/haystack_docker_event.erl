@@ -17,15 +17,21 @@
 
 process(#{<<"id">> := Id,
           <<"time">> := Time,
-          <<"status">> := <<"stop">>},
-        #{start_time := StartTime} = State) when Time > StartTime ->
+          <<"status">> := Status},
+        #{start_time := StartTime} = State)
+  when (Status == <<"die">> orelse
+        Status == <<"pause">>) andalso
+       (Time > StartTime) ->
     haystack_docker_container:remove(Id),
     State;
 
 process(#{<<"id">> := Id,
           <<"time">> := Time,
-          <<"status">> := <<"start">>},
-        #{start_time := StartTime} = State) when Time > StartTime ->
+          <<"status">> := Status},
+        #{start_time := StartTime} = State)
+  when (Status == <<"start">> orelse
+        Status == <<"unpause">>) andalso
+       (Time > StartTime) ->
     networks(State),
     inspect_container(Id, State),
     State;

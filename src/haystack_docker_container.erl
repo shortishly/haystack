@@ -43,7 +43,12 @@ lookup(Id) ->
     end.
 
 remove(Id) ->
-    ets:take(?MODULE, Id).
+    haystack_docker_service:remove(Id),
+    lists:foreach(fun
+                      (#?MODULE{addr = Addr}) ->
+                          unregister_container_a(Id, Addr)
+                  end,
+                  ets:take(?MODULE, Id)).
 
 r(Id, Addr) ->
     #?MODULE{id = Id, addr = Addr}.
@@ -60,6 +65,14 @@ register_container_a(Id, Address) ->
       haystack_docker_util:ttl(),
       Address).
 
+unregister_container_a(Id, Address) ->
+    haystack_node:remove(
+      haystack_docker_util:container_id(Id),
+      in,
+      a,
+      haystack_docker_util:ttl(),
+      Address).
+
 
 process(Containers) ->
     lists:foreach(fun process_container/1, Containers).
@@ -70,32 +83,26 @@ process_container(#{<<"Id">> := Id,
                     <<"Names">> := Names,
                     <<"Ports">> := Ports}) ->
 
-    lists:foreach(fun
-                      (#{<<"PrivatePort">> := Private,
-                         <<"Type">> := Type}) ->
-                          add_service(Id,
-                                      Names,
-                                      Image,
-                                      Private,
-                                      Type);
+    lists:foreach(
+      fun
+          (#{<<"PrivatePort">> := Private,
+             <<"Type">> := Type}) ->
+              add_service(Id, Names, Image, Private, Type);
 
-                      ({PortProtocol, _}) ->
-                          [Private, Type] = binary:split(PortProtocol, <<"/">>),
-                          add_service(Id,
-                                      Names,
-                                      Image,
-                                      binary_to_integer(Private),
-                                      Type)
-                  end,
-                  Ports).
+          ({PortProtocol, _}) ->
+              [Private, Type] = binary:split(PortProtocol, <<"/">>),
+              add_service(Id, Names, Image, binary_to_integer(Private), Type)
+      end,
+      Ports).
 
 
 add_service(Id, Names, Image, Private, Type) ->
-    haystack_docker_service:add(Id,
-                                Private,
-                                Type,
-                                container_name(Names, Image),
-                                haystack_docker_util:container_id(Id)).
+    haystack_docker_service:add(
+      Id,
+      Private,
+      Type,
+      container_name(Names, Image),
+      haystack_docker_util:container_id(Id)).
 
 
 container_name([<<"/", Name/binary>>], Image) ->

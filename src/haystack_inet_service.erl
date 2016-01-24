@@ -53,7 +53,9 @@ on_load() ->
                                        end
                                end,
                                [],
-                               tl(binary:split(Services, <<"\r\n">>, [global])))),
+                               tl(binary:split(Services,
+                                               <<"\r\n">>,
+                                               [global])))),
         ok
     catch _:badarg ->
             ok
