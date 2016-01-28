@@ -53,13 +53,13 @@ resources(http) ->
 
      {<<"[...].", (haystack_config:origin(services))/binary>>,
       [{'_',
-        haystack_http_proxy_resource,
+        munchausen_http_proxy_resource,
         #{prefix => <<"_http._tcp.">>,
           balancer => haystack_balance_random}}]}];
 
 resources(http_alt) ->
     [{<<"[...].", (haystack_config:origin(services))/binary>>,
       [{'_',
-        haystack_http_proxy_resource,
+        munchausen_http_proxy_resource,
         #{prefix => <<"_http-alt._tcp.">>,
           balancer => haystack_balance_random}}]}].
