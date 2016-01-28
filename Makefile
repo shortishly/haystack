@@ -22,6 +22,7 @@ DEPS = \
 	gproc \
 	gun \
 	jsx \
+	munchausen \
 	recon
 
 LOCAL_DEPS = \
@@ -36,6 +37,7 @@ TEST_DEPS = pcapng
 
 dep_pcapng = git https://github.com/shortishly/pcapng.git master
 dep_cowboy = git https://github.com/ninenines/cowboy.git master
+dep_munchausen = git https://github.com/shortishly/munchausen.git master
 
 SHELL_OPTS = \
 	-boot start_sasl \
