@@ -115,37 +115,42 @@ handle_info({gun_data, _, Info, fin, Data},
             #{info := Info,
               partial := Partial,
               host := Host} = State) ->
-    #{<<"ID">> := Id,
-      <<"SystemTime">> := SystemTime} = jsx:decode(<<Partial/binary,
-                                                     Data/binary>>,
-                                                   [return_maps]),
 
-    StartTime = haystack_date:seconds_since_epoch(
-                  haystack_docker_util:system_time(SystemTime)),
+    case jsx:decode(<<Partial/binary, Data/binary>>, [return_maps]) of
 
-    case inet:parse_ipv4_address(Host) of
-        {ok, Address} ->
-            register_docker_a(Id, Address),
-            {noreply,
-             maps:without([info], State#{id => Id,
-                                         start_time => StartTime,
-                                         partial => <<>>})};
+        #{<<"ID">> := <<>>} ->
+            {noreply, State};
 
-        {error, einval} ->
-            case inet:gethostbyname(Host) of
-                {ok, #hostent{h_addr_list = Addresses}} ->
-                    lists:foreach(fun
-                                      (Address) ->
-                                          register_docker_a(Id, Address)
-                                  end,
-                                  Addresses),
+        #{<<"ID">> := Id,
+          <<"SystemTime">> := SystemTime} ->
+
+            StartTime = haystack_date:seconds_since_epoch(
+                          haystack_docker_util:system_time(SystemTime)),
+
+            case inet:parse_ipv4_address(Host) of
+                {ok, Address} ->
+                    register_docker_a(Id, Address),
                     {noreply,
                      maps:without([info], State#{id => Id,
-                                                 start_time => StartTime,
+                                         start_time => StartTime,
                                                  partial => <<>>})};
 
-                {error, Reason} ->
-                    {stop, Reason, State}
+                {error, einval} ->
+                    case inet:gethostbyname(Host) of
+                        {ok, #hostent{h_addr_list = Addresses}} ->
+                            lists:foreach(fun
+                                              (Address) ->
+                                                  register_docker_a(Id, Address)
+                                          end,
+                                          Addresses),
+                            {noreply,
+                             maps:without([info],
+                                          State#{id => Id,
+                                                 start_time => StartTime,
+                                                 partial => <<>>})};
+                        {error, Reason} ->
+                            {stop, Reason, State}
+                    end
             end
     end;
 
