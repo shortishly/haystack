@@ -119,7 +119,7 @@ handle_info({gun_data, _, Info, fin, Data},
     case jsx:decode(<<Partial/binary, Data/binary>>, [return_maps]) of
 
         #{<<"ID">> := <<>>} ->
-            {noreply, State};
+            {noreply, State#{start_time => haystack_date:right_now()}};
 
         #{<<"ID">> := Id,
           <<"SystemTime">> := SystemTime} ->
