@@ -82,6 +82,7 @@ register_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
          <<"arpa">>]),
       in,
       ptr,
+      haystack_docker_util:ttl(),
       #{name => haystack_docker_util:container_id(Id)}).
 
 
@@ -110,6 +111,7 @@ unregister_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
          <<"arpa">>]),
       in,
       ptr,
+      haystack_docker_util:ttl(),
       #{name => haystack_docker_util:container_id(Id)}).
 
 

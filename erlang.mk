@@ -16,7 +16,7 @@
 
 ERLANG_MK_FILENAME := $(realpath $(lastword $(MAKEFILE_LIST)))
 
-ERLANG_MK_VERSION = 2.0.0-pre.2-78-g06e9fbf
+ERLANG_MK_VERSION = 2.0.0-pre.2-79-g35e1283
 
 # Core configuration.
 
@@ -3434,6 +3434,14 @@ pkg_skel_homepage = https://github.com/ParaPhrase/skel
 pkg_skel_fetch = git
 pkg_skel_repo = https://github.com/ParaPhrase/skel
 pkg_skel_commit = master
+
+PACKAGES += slack
+pkg_slack_name = slack
+pkg_slack_description = Minimal slack notification OTP library.
+pkg_slack_homepage = https://github.com/DonBranson/slack
+pkg_slack_fetch = git
+pkg_slack_repo = https://github.com/DonBranson/slack.git
+pkg_slack_commit = 1.0.0
 
 PACKAGES += smother
 pkg_smother_name = smother

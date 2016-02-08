@@ -338,4 +338,5 @@ register_docker_ptr(Id, {IP1, IP2, IP3, IP4}) ->
          <<"arpa">>]),
       in,
       ptr,
+      haystack_docker_util:ttl(),
       #{name => haystack_docker_util:docker_id(Id)}).
