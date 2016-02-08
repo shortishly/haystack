@@ -131,7 +131,7 @@ handle_info({gun_data, Gun, Info, fin, Data},
 
             case inet:parse_ipv4_address(Host) of
                 {ok, Address} ->
-                    register_docker_a(Id, Address),
+                    register_docker(Id, Address),
                     {noreply,
                      maps:without(
                        [info],
@@ -145,7 +145,7 @@ handle_info({gun_data, Gun, Info, fin, Data},
                         {ok, #hostent{h_addr_list = Addresses}} ->
                             lists:foreach(fun
                                               (Address) ->
-                                                  register_docker_a(Id, Address)
+                                                  register_docker(Id, Address)
                                           end,
                                           Addresses),
                             {noreply,
@@ -313,6 +313,11 @@ process_events(Events, State) ->
     end.
 
 
+register_docker(Id, Address) ->
+    register_docker_a(Id, Address),
+    register_docker_ptr(Id, Address).
+
+
 register_docker_a(Id, Address) ->
     haystack_node:add(
       haystack_docker_util:docker_id(Id),
@@ -320,3 +325,17 @@ register_docker_a(Id, Address) ->
       a,
       haystack_docker_util:ttl(),
       Address).
+
+
+register_docker_ptr(Id, {IP1, IP2, IP3, IP4}) ->
+    haystack_node:add(
+      haystack_name:labels(
+        [integer_to_binary(IP4),
+         integer_to_binary(IP3),
+         integer_to_binary(IP2),
+         integer_to_binary(IP1),
+         <<"in-addr">>,
+         <<"arpa">>]),
+      in,
+      ptr,
+      #{name => haystack_docker_util:docker_id(Id)}).

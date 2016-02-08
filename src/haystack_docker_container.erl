@@ -31,7 +31,7 @@ on_load() ->
 add(Id, Address) ->
     ets:insert(?MODULE, [r(Id, Address)]) orelse
         error({badarg, [Id, Address]}),
-    register_container_a(Id, Address).
+    register_container(Id, Address).
 
 lookup(Id) ->
     case ets:lookup(?MODULE, Id) of
@@ -46,7 +46,7 @@ remove(Id) ->
     haystack_docker_service:remove(Id),
     lists:foreach(fun
                       (#?MODULE{addr = Addr}) ->
-                          unregister_container_a(Id, Addr)
+                          unregister_container(Id, Addr)
                   end,
                   ets:take(?MODULE, Id)).
 
@@ -57,6 +57,11 @@ to_map(#?MODULE{addr = Addr}) ->
     #{addr => Addr}.
 
 
+register_container(Id, Address) ->
+    register_container_a(Id, Address),
+    register_container_ptr(Id, Address).
+
+
 register_container_a(Id, Address) ->
     haystack_node:add(
       haystack_docker_util:container_id(Id),
@@ -65,6 +70,26 @@ register_container_a(Id, Address) ->
       haystack_docker_util:ttl(),
       Address).
 
+
+register_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
+    haystack_node:add(
+      haystack_name:labels(
+        [integer_to_binary(IP4),
+         integer_to_binary(IP3),
+         integer_to_binary(IP2),
+         integer_to_binary(IP1),
+         <<"in-addr">>,
+         <<"arpa">>]),
+      in,
+      ptr,
+      #{name => haystack_docker_util:container_id(Id)}).
+
+
+unregister_container(Id, Address) ->
+    unregister_container_a(Id, Address),
+    unregister_container_ptr(Id, Address).
+
+
 unregister_container_a(Id, Address) ->
     haystack_node:remove(
       haystack_docker_util:container_id(Id),
@@ -72,6 +97,20 @@ unregister_container_a(Id, Address) ->
       a,
       haystack_docker_util:ttl(),
       Address).
+
+
+unregister_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
+    haystack_node:remove(
+      haystack_name:labels(
+        [integer_to_binary(IP4),
+         integer_to_binary(IP3),
+         integer_to_binary(IP2),
+         integer_to_binary(IP1),
+         <<"in-addr">>,
+         <<"arpa">>]),
+      in,
+      ptr,
+      #{name => haystack_docker_util:container_id(Id)}).
 
 
 process(Containers) ->
