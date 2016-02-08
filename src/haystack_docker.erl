@@ -278,18 +278,40 @@ process_containers(Containers) ->
     haystack_docker_container:process(jsx:decode(Containers, [return_maps])).
 
 process_events(Events, State) ->
-    case binary:split(Events, <<"\n">>) of
-        [Event, Remainder] ->
-            process_events(Remainder,
-                           haystack_docker_event:process(
-                             jsx:decode(Event, [return_maps]), State));
+    case {binary:match(Events, <<"\n">>), binary:match(Events, <<"}{">>)} of
+        {nomatch, nomatch} ->
+            State#{partial => Events};
 
-        [Partial] ->
-            State#{partial => Partial};
+        {_, nomatch} ->
+            case binary:split(Events, <<"\n">>) of
+                [Event, Remainder] ->
+                    process_events(Remainder,
+                                   haystack_docker_event:process(
+                                     jsx:decode(Event, [return_maps]), State));
 
-        [] ->
-            State#{partial => <<>>}
+                [Partial] ->
+                    State#{partial => Partial};
+
+                [] ->
+                    State#{partial => <<>>}
+            end;
+
+        {nomatch, _} ->
+            case binary:split(Events, <<"}{">>) of
+                [Event, Remainder] ->
+                    process_events(<<"{", Remainder/binary>>,
+                                   haystack_docker_event:process(
+                                     jsx:decode(<<Event/binary, "}">>,
+                                                [return_maps]), State));
+
+                [Partial] ->
+                    State#{partial => Partial};
+
+                [] ->
+                    State#{partial => <<>>}
+            end
     end.
+
 
 register_docker_a(Id, Address) ->
     haystack_node:add(
