@@ -13,7 +13,7 @@
 %% limitations under the License.
 
 -module(haystack_docker_container).
--export([add/2]).
+-export([add/6]).
 -export([lookup/1]).
 -export([remove/1]).
 -export([process/1]).
@@ -22,14 +22,19 @@
 
 -record(?MODULE, {
            id :: haystack_docker:id(),
-           addr :: inet:ip_address()
+           addr :: inet:ip_address(),
+           network,
+           endpoint,
+           mac_address,
+           name
           }).
 
 on_load() ->
     haystack_table:reuse(?MODULE).
 
-add(Id, Address) ->
-    ets:insert(?MODULE, [r(Id, Address)]) orelse
+add(Id, Address, Network, Endpoint, MacAddress, Name) ->
+    ets:insert(
+      ?MODULE, [r(Id, Address, Network, Endpoint, MacAddress, Name)]) orelse
         error({badarg, [Id, Address]}),
     register_container(Id, Address).
 
@@ -42,24 +47,39 @@ lookup(Id) ->
             error({badarg, Id})
     end.
 
+
 remove(Id) ->
     haystack_docker_service:remove(Id),
-    lists:foreach(fun
-                      (#?MODULE{addr = Addr}) ->
-                          unregister_container(Id, Addr)
-                  end,
-                  ets:take(?MODULE, Id)).
+    lists:foreach(
+      fun
+          (#?MODULE{addr = Addr}) ->
+              unregister_container(Id, Addr)
+      end,
+      ets:take(?MODULE, Id)).
 
-r(Id, Addr) ->
-    #?MODULE{id = Id, addr = Addr}.
 
-to_map(#?MODULE{addr = Addr}) ->
-    #{addr => Addr}.
+r(Id, Addr, Network, Endpoint, MacAddress, Name) ->
+    #?MODULE{id = Id,
+             addr = Addr,
+             network = Network,
+             endpoint = Endpoint,
+             mac_address = MacAddress,
+             name = Name}.
+
+
+to_map(#?MODULE{addr = Addr, network = Network}) ->
+    #{addr => Addr, network => Network}.
 
 
 register_container(Id, Address) ->
-    register_container_a(Id, Address),
-    register_container_ptr(Id, Address).
+    case haystack_docker_util:is_same_network(Address) of
+        true ->
+            register_container_a(Id, Address),
+            register_container_ptr(Id, Address);
+
+        false ->
+            nop
+    end.
 
 
 register_container_a(Id, Address) ->
@@ -73,13 +93,12 @@ register_container_a(Id, Address) ->
 
 register_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
     haystack_node:add(
-      haystack_name:labels(
-        [integer_to_binary(IP4),
-         integer_to_binary(IP3),
-         integer_to_binary(IP2),
-         integer_to_binary(IP1),
-         <<"in-addr">>,
-         <<"arpa">>]),
+      [integer_to_binary(IP4),
+       integer_to_binary(IP3),
+       integer_to_binary(IP2),
+       integer_to_binary(IP1),
+       <<"in-addr">>,
+       <<"arpa">>],
       in,
       ptr,
       haystack_docker_util:ttl(),
@@ -102,13 +121,12 @@ unregister_container_a(Id, Address) ->
 
 unregister_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
     haystack_node:remove(
-      haystack_name:labels(
-        [integer_to_binary(IP4),
-         integer_to_binary(IP3),
-         integer_to_binary(IP2),
-         integer_to_binary(IP1),
-         <<"in-addr">>,
-         <<"arpa">>]),
+      [integer_to_binary(IP4),
+       integer_to_binary(IP3),
+       integer_to_binary(IP2),
+       integer_to_binary(IP1),
+       <<"in-addr">>,
+       <<"arpa">>],
       in,
       ptr,
       haystack_docker_util:ttl(),

@@ -26,11 +26,24 @@ lookup(Name, Class, Type) ->
 
 
 recursive(Name, Class, Type) ->
-    case inet_res:resolve(haystack_name:stringify(Name), Class, Type) of
+    case inet_res:resolve(
+           haystack_name:stringify(Name),
+           Class,
+           Type,
+           [{nameservers, haystack_config:nameservers()}]) of
+
         {error, {nxdomain, _}} ->
             not_found;
 
         {error, formerr} ->
+            not_found;
+
+        {error, timeout} ->
+            error_logger:error_report([{module, ?MODULE},
+                                       {line, ?LINE},
+                                       {name, Name},
+                                       {class, Class},
+                                       {type, Type}]),
             not_found;
 
         {ok, Response} ->

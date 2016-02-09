@@ -13,12 +13,32 @@
 %% limitations under the License.
 
 -module(haystack_docker_util).
+
 -export([container_id/1]).
 -export([docker_id/1]).
+-export([is_same_network/1]).
 -export([request/2]).
 -export([ssl/2]).
 -export([system_time/1]).
 -export([ttl/0]).
+
+
+is_same_network(Address) ->
+    {ok, {_, _, DockerHost, _, _, _}} = http_uri:parse(
+                                          haystack:get_env(
+                                            docker_host, [os_env])),
+    {ok, DockerAddress} = inet:parse_ipv4_address(DockerHost),
+    is_same_network(Address, DockerAddress).
+
+
+is_same_network({172, 16, IP3, _}, {172, 16, IP3, _}) ->
+    true;
+is_same_network({10, IP2, IP3, _}, {10, IP2, IP3, _}) ->
+    true;
+is_same_network({10, IP2, _, _}, {10, IP2, _, _}) ->
+    true;
+is_same_network(_, _) ->
+    false.
 
 
 request(Suffix, #{host := Host,

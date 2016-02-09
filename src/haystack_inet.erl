@@ -17,13 +17,15 @@
 
 getifaddrs(v4) ->
     {ok, Interfaces} = inet:getifaddrs(),
-    lists:foldl(fun
-                  ({_, Properties}, A) ->
-                        [Addr ||
-                            {_, _, _, _} = Addr <-
-                                proplists:get_all_values(addr,
-                                                         Properties),
-                               Addr /= {127, 0, 0, 1}] ++ A
-              end,
-              [],
-              Interfaces).
+
+    lists:filter(fun haystack_docker_util:is_same_network/1,
+                 lists:foldl(fun
+                                 ({_, Properties}, A) ->
+                                     [Addr ||
+                                         {_, _, _, _} = Addr <-
+                                             proplists:get_all_values(
+                                               addr, Properties),
+                                         Addr /= {127, 0, 0, 1}] ++ A
+                             end,
+                             [],
+                             Interfaces)).

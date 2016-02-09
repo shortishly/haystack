@@ -280,7 +280,13 @@ process_containers(Containers) ->
 process_events(Events, State) ->
     case {binary:match(Events, <<"\n">>), binary:match(Events, <<"}{">>)} of
         {nomatch, nomatch} ->
-            State#{partial => Events};
+            try
+                haystack_docker_event:process(
+                  jsx:decode(Events, [return_maps]), State#{partial => <<>>})
+
+            catch _:badarg ->
+                    State#{partial => Events}
+            end;
 
         {_, nomatch} ->
             case binary:split(Events, <<"\n">>) of
@@ -305,14 +311,7 @@ process_events(Events, State) ->
                                                 [return_maps]), State));
 
                 [Partial] ->
-                    try
-                        haystack_docker_event:process(
-                          jsx:decode(Partial, [return_maps])),
-                        State#{partial => <<>>}
-
-                    catch _:badarg ->
-                            State#{partial => Partial}
-                    end;
+                    process_events(Partial, State#{partial => <<>>});
 
                 [] ->
                     State#{partial => <<>>}
@@ -321,8 +320,13 @@ process_events(Events, State) ->
 
 
 register_docker(Id, Address) ->
-    register_docker_a(Id, Address),
-    register_docker_ptr(Id, Address).
+    case haystack_docker_util:is_same_network(Address) of
+        true ->
+            register_docker_a(Id, Address),
+            register_docker_ptr(Id, Address);
+        false ->
+            nop
+    end.
 
 
 register_docker_a(Id, Address) ->
@@ -336,13 +340,12 @@ register_docker_a(Id, Address) ->
 
 register_docker_ptr(Id, {IP1, IP2, IP3, IP4}) ->
     haystack_node:add(
-      haystack_name:labels(
-        [integer_to_binary(IP4),
-         integer_to_binary(IP3),
-         integer_to_binary(IP2),
-         integer_to_binary(IP1),
-         <<"in-addr">>,
-         <<"arpa">>]),
+      [integer_to_binary(IP4),
+       integer_to_binary(IP3),
+       integer_to_binary(IP2),
+       integer_to_binary(IP1),
+       <<"in-addr">>,
+       <<"arpa">>],
       in,
       ptr,
       haystack_docker_util:ttl(),

@@ -15,6 +15,7 @@
 -module(haystack_config).
 -export([acceptors/1]).
 -export([enabled/1]).
+-export([nameservers/0]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
@@ -62,3 +63,16 @@ origin(containers) ->
 origin() ->
     list_to_binary(haystack:get_env(haystack_origin,
                                     [os_env, {default, "haystack"}])).
+
+nameservers() ->
+    lists:map(
+      fun
+          (Address) ->
+              {ok, IP} = inet:parse_ipv4_address(Address),
+              {IP, 53}
+      end,
+      string:tokens(
+        haystack:get_env(
+          haystack_nameservers,
+          [os_env, {default, "8.8.8.8:8.8.4.4"}]),
+        ":")).

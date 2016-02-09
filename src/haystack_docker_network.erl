@@ -15,25 +15,54 @@
 -module(haystack_docker_network).
 -export([process/1]).
 
+-on_load(on_load/0).
+
+-record(?MODULE, {
+           id,
+           name,
+           scope,
+           driver
+          }).
+
+on_load() ->
+    haystack_table:reuse(?MODULE).
+
+add(Id, Name, Scope, Driver) ->
+    ets:insert(?MODULE, [r(Id, Name, Scope, Driver)]).
+
+r(Id, Name, Scope, Driver) ->
+    #?MODULE{id = Id, name = Name, scope = Scope, driver = Driver}.
+
 process(Networks) ->
-    lists:foldl(fun
-                    (#{<<"Containers">> := Containers}, A) ->
-                        maps:merge(maps:fold(fun process_network_container/3,
-                                             #{},
-                                             Containers),
-                                   A)
-                end,
-                #{},
-                jsx:decode(Networks, [return_maps])).
+    lists:foldl(
+      fun
+          (#{<<"Id">> := Id,
+             <<"Name">> := Name,
+             <<"Scope">> := Scope,
+             <<"Driver">> := Driver,
+             <<"Containers">> := Containers}, A) ->
 
-process_network_container(Container,
-                          #{<<"IPv4Address">> := AddressWithMask}, A) ->
-    [Address, _Mask] = binary:split(AddressWithMask, <<"/">>),
-    case inet:parse_address(binary_to_list(Address)) of
-        {ok, IP} ->
-            haystack_docker_container:add(Container, IP),
-            A#{Container => IP};
+              add(Id, Name, Scope, Driver),
+              maps:merge(
+                maps:fold(process_network_container(Id), #{}, Containers), A)
+      end,
+      #{},
+      jsx:decode(Networks, [return_maps])).
 
-        {error, _} ->
-            A
+process_network_container(Network) ->
+    fun
+        (Container, #{<<"IPv4Address">> := AddressWithMask,
+                      <<"EndpointID">> := Endpoint,
+                      <<"MacAddress">> := MacAddress,
+                      <<"Name">> := Name}, A) ->
+            [Address, _Mask] = binary:split(AddressWithMask, <<"/">>),
+            case inet:parse_address(binary_to_list(Address)) of
+                {ok, IP} ->
+                    haystack_docker_container:add(
+                      Container, IP, Network, Endpoint, MacAddress, Name),
+                    A#{Container => IP};
+
+                {error, _} ->
+                    A
+            end
     end.
