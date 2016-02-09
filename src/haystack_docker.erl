@@ -305,7 +305,14 @@ process_events(Events, State) ->
                                                 [return_maps]), State));
 
                 [Partial] ->
-                    State#{partial => Partial};
+                    try
+                        haystack_docker_event:process(
+                          jsx:decode(Partial, [return_maps])),
+                        State#{partial => <<>>}
+
+                    catch _:badarg ->
+                            State#{partial => Partial}
+                    end;
 
                 [] ->
                     State#{partial => <<>>}
