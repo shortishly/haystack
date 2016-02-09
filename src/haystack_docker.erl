@@ -102,16 +102,13 @@ handle_info({'DOWN', Monitor, process, _, normal},
 handle_info({gun_up, Gun, http}, #{docker := Gun} = State) ->
     {noreply,
      State#{
-       info => gun:get(Gun, "/info"),
-       networks => gun:get(Gun, "/networks"),
-       containers => gun:get(Gun, "/containers/json"),
-       events => gun:get(Gun, "/events")
+       info => gun:get(Gun, "/info")
       }};
 
 handle_info({gun_down, Gun, http, normal, [], []}, #{docker := Gun} = State) ->
     {noreply, State};
 
-handle_info({gun_data, _, Info, fin, Data},
+handle_info({gun_data, Gun, Info, fin, Data},
             #{info := Info,
               partial := Partial,
               host := Host} = State) ->
@@ -119,7 +116,12 @@ handle_info({gun_data, _, Info, fin, Data},
     case jsx:decode(<<Partial/binary, Data/binary>>, [return_maps]) of
 
         #{<<"ID">> := <<>>} ->
-            {noreply, State};
+            {noreply,
+             maps:without(
+               [info],
+               State#{start_time => haystack_date:right_now(),
+                      partial => <<>>,
+                      networks => gun:get(Gun, "/networks")})};
 
         #{<<"ID">> := Id,
           <<"SystemTime">> := SystemTime} ->
@@ -129,48 +131,60 @@ handle_info({gun_data, _, Info, fin, Data},
 
             case inet:parse_ipv4_address(Host) of
                 {ok, Address} ->
-                    register_docker_a(Id, Address),
+                    register_docker(Id, Address),
                     {noreply,
-                     maps:without([info], State#{id => Id,
-                                         start_time => StartTime,
-                                                 partial => <<>>})};
+                     maps:without(
+                       [info],
+                       State#{id => Id,
+                              start_time => StartTime,
+                              networks => gun:get(Gun, "/networks"),
+                              partial => <<>>})};
 
                 {error, einval} ->
                     case inet:gethostbyname(Host) of
                         {ok, #hostent{h_addr_list = Addresses}} ->
                             lists:foreach(fun
                                               (Address) ->
-                                                  register_docker_a(Id, Address)
+                                                  register_docker(Id, Address)
                                           end,
                                           Addresses),
                             {noreply,
-                             maps:without([info],
-                                          State#{id => Id,
-                                                 start_time => StartTime,
-                                                 partial => <<>>})};
+                             maps:without(
+                               [info],
+                               State#{
+                                 id => Id,
+                                 start_time => StartTime,
+                                 networks => gun:get(Gun, "/networks"),
+                                 partial => <<>>})};
                         {error, Reason} ->
                             {stop, Reason, State}
                     end
             end
     end;
 
-handle_info({gun_data, _, Networks, fin, Data},
+handle_info({gun_data, Gun, Networks, fin, Data},
             #{networks := Networks,
               partial := Partial} = State) ->
     haystack_docker_network:process(<<Partial/binary, Data/binary>>),
-    {noreply, maps:without([networks], State#{partial => <<>>})};
+    {noreply, maps:without(
+                [networks], State#{
+                              partial => <<>>,
+                              containers => gun:get(Gun, "/containers/json")})};
 
-handle_info({gun_data, _, Containers, fin, Data},
+handle_info({gun_data, Gun, Containers, fin, Data},
             #{containers := Containers,
               partial := Partial} = State) ->
     process_containers(<<Partial/binary, Data/binary>>),
-    {noreply, maps:without([containers], State#{partial => <<>>})};
+    {noreply, maps:without(
+                [containers],
+                State#{partial => <<>>,
+                       events => gun:get(Gun, "/events")})};
 
 handle_info({gun_data, _, Events, nofin, Data},
             #{partial := Partial,
               events := Events} = State) ->
-    {noreply,
-     process_events(<<Partial/binary, Data/binary>>, State#{partial => <<>>})};
+    {noreply, process_events(
+                <<Partial/binary, Data/binary>>, State#{partial => <<>>})};
 
 handle_info({gun_data, _, _, nofin, Data}, #{partial := Partial} = State) ->
     {noreply, State#{partial => <<Partial/binary, Data/binary>>}};
@@ -264,18 +278,45 @@ process_containers(Containers) ->
     haystack_docker_container:process(jsx:decode(Containers, [return_maps])).
 
 process_events(Events, State) ->
-    case binary:split(Events, <<"\n">>) of
-        [Event, Remainder] ->
-            process_events(Remainder,
-                           haystack_docker_event:process(
-                             jsx:decode(Event, [return_maps]), State));
+    case {binary:match(Events, <<"\n">>), binary:match(Events, <<"}{">>)} of
+        {nomatch, nomatch} ->
+            State#{partial => Events};
 
-        [Partial] ->
-            State#{partial => Partial};
+        {_, nomatch} ->
+            case binary:split(Events, <<"\n">>) of
+                [Event, Remainder] ->
+                    process_events(Remainder,
+                                   haystack_docker_event:process(
+                                     jsx:decode(Event, [return_maps]), State));
 
-        [] ->
-            State#{partial => <<>>}
+                [Partial] ->
+                    State#{partial => Partial};
+
+                [] ->
+                    State#{partial => <<>>}
+            end;
+
+        {nomatch, _} ->
+            case binary:split(Events, <<"}{">>) of
+                [Event, Remainder] ->
+                    process_events(<<"{", Remainder/binary>>,
+                                   haystack_docker_event:process(
+                                     jsx:decode(<<Event/binary, "}">>,
+                                                [return_maps]), State));
+
+                [Partial] ->
+                    State#{partial => Partial};
+
+                [] ->
+                    State#{partial => <<>>}
+            end
     end.
+
+
+register_docker(Id, Address) ->
+    register_docker_a(Id, Address),
+    register_docker_ptr(Id, Address).
+
 
 register_docker_a(Id, Address) ->
     haystack_node:add(
@@ -284,3 +325,18 @@ register_docker_a(Id, Address) ->
       a,
       haystack_docker_util:ttl(),
       Address).
+
+
+register_docker_ptr(Id, {IP1, IP2, IP3, IP4}) ->
+    haystack_node:add(
+      haystack_name:labels(
+        [integer_to_binary(IP4),
+         integer_to_binary(IP3),
+         integer_to_binary(IP2),
+         integer_to_binary(IP1),
+         <<"in-addr">>,
+         <<"arpa">>]),
+      in,
+      ptr,
+      haystack_docker_util:ttl(),
+      #{name => haystack_docker_util:docker_id(Id)}).

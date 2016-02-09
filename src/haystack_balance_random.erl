@@ -28,7 +28,7 @@ pick(Hostname, Path) ->
     end.
 
 pick_one_from(#{data := #{target := Target, port := Port}}) ->
-    [#{data := Address}] = haystack_node:find(Target, in, a),
+    [#{data := Address} | _] = haystack_node:find(Target, in, a),
     #{host => inet:ntoa(Address), port => Port};
 pick_one_from(Matches) ->
     pick_one_from(lists:nth(random:uniform(length(Matches)), Matches)).
