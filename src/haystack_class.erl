@@ -60,5 +60,3 @@ lookup(Name) ->
         [] ->
             error({badarg, Name})
     end.
-
-

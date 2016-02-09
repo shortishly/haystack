@@ -47,10 +47,7 @@ ensure_loaded() ->
 
 modules() ->
     {ok, Modules} = application:get_key(?MODULE, modules),
-    [Module || Module <- Modules, member_of(Module)].
-
-member_of(Module) ->
-    hd(string:tokens(atom_to_list(Module), "_")) =:= atom_to_list(?MODULE).
+    Modules.
 
 
 trace() ->

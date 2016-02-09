@@ -34,10 +34,7 @@ init([]) ->
              worker(haystack_sshd),
              supervisor(haystack_docker_sup),
              worker(haystack_udp_request)],
-    {ok,
-     {#{intensity => 5,
-        period => 5},
-      Procs}}.
+    {ok, {#{intensity => 5, period => 5}, Procs}}.
 
 supervisor(Module) ->
     supervisor(Module, permanent).

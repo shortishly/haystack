@@ -52,8 +52,8 @@ init([]) ->
 options() ->
     [{inet, inet},
      {subsystems, []},
-     {system_dir, filename:join(haystack:priv_dir(), "ssh")},
-     {user_dir, filename:join(haystack:priv_dir(), "ssh")},
+     {system_dir, haystack:priv_file("ssh")},
+     {user_dir, haystack:priv_file("ssh")},
      {auth_methods, "publickey"}].
 
 handle_call(stop, _, S) ->

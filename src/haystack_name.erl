@@ -77,11 +77,14 @@ labels(DomainName) when is_binary(DomainName) ->
 
 
 stringify(Labels) ->
-    binary_to_list(lists:foldr(fun
-                                   (Label, <<>>) ->
-                                       Label;
-                                   (Label, A) ->
-                                       <<Label/binary, ".", A/binary>>
-                               end,
-                               <<>>,
-                               Labels)).
+    binary_to_list(
+      lists:foldr(
+        fun
+            (Label, <<>>) ->
+                Label;
+
+            (Label, A) ->
+                <<Label/binary, ".", A/binary>>
+        end,
+        <<>>,
+        Labels)).

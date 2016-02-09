@@ -44,21 +44,22 @@ process(#{header := Header,
             additional => [TSIG]};
 
 process(#{header := Header, questions := Questions} = Packet) ->
-    lists:foldl(fun
-                    (#{name := Name, class := Class, type := Type}, A) ->
-                       case haystack_res:lookup(Name, Class, Type) of
-                           not_found ->
-                               A#{header => Header#{qr => response,
-                                                    rcode => name_error}};
+    lists:foldl(
+      fun
+          (#{name := Name, class := Class, type := Type}, A) ->
+              case haystack_res:lookup(Name, Class, Type) of
+                  not_found ->
+                      A#{header => Header#{qr => response,
+                                           rcode => name_error}};
 
-                           Resources ->
-                               A#{header => Header#{qr => response,
-                                                    rcode => no_error},
-                                  answers => Resources}
-                       end
-               end,
-                Packet,
-                Questions);
+                  Resources ->
+                      A#{header => Header#{qr => response,
+                                           rcode => no_error},
+                         answers => Resources}
+              end
+      end,
+      Packet,
+      Questions);
 
 process(Packet) ->
     encode(process(decode(Packet))).

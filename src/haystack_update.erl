@@ -28,16 +28,17 @@ add_header(Name, Mapping) ->
 
 
 process(#{header := Header, updates := Updates} = Packet) ->
-    lists:foreach(fun
-                      (#{labels := Name,
-                         class := Class, type := Type, ttl := 0}) ->
-                         haystack_node:remove(Name, Class, Type);
+    lists:foreach(
+      fun
+          (#{labels := Name,
+             class := Class, type := Type, ttl := 0}) ->
+              haystack_node:remove(Name, Class, Type);
 
-                      (#{labels := Name,
-                         class := in,
-                         type := Type, ttl := TTL, data := Data}) ->
-                         haystack_node:add(Name, in, Type, TTL, Data)
-                 end, Updates),
+          (#{labels := Name,
+             class := in,
+             type := Type, ttl := TTL, data := Data}) ->
+              haystack_node:add(Name, in, Type, TTL, Data)
+      end, Updates),
     Packet#{header => Header#{qr => response, rcode => no_error}};
 
 process(Packet) ->

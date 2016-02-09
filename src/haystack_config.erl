@@ -60,4 +60,5 @@ origin(containers) ->
     <<"containers.", (origin())/binary>>.
 
 origin() ->
-    <<"haystack">>.
+    list_to_binary(haystack:get_env(haystack_origin,
+                                    [os_env, {default, "haystack"}])).
