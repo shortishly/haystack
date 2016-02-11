@@ -143,11 +143,12 @@ handle_info({gun_data, Gun, Info, fin, Data},
                 {error, einval} ->
                     case inet:gethostbyname(Host) of
                         {ok, #hostent{h_addr_list = Addresses}} ->
-                            lists:foreach(fun
-                                              (Address) ->
-                                                  register_docker(Id, Address)
-                                          end,
-                                          Addresses),
+                            lists:foreach(
+                              fun
+                                  (Address) ->
+                                      register_docker(Id, Address)
+                              end,
+                              Addresses),
                             {noreply,
                              maps:without(
                                [info],
@@ -165,7 +166,8 @@ handle_info({gun_data, Gun, Info, fin, Data},
 handle_info({gun_data, Gun, Networks, fin, Data},
             #{networks := Networks,
               partial := Partial} = State) ->
-    haystack_docker_network:process(<<Partial/binary, Data/binary>>),
+    haystack_docker_network:process(
+      jsx:decode(<<Partial/binary, Data/binary>>, [return_maps])),
     {noreply, maps:without(
                 [networks], State#{
                               partial => <<>>,
@@ -320,13 +322,8 @@ process_events(Events, State) ->
 
 
 register_docker(Id, Address) ->
-    case haystack_docker_util:is_same_network(Address) of
-        true ->
-            register_docker_a(Id, Address),
-            register_docker_ptr(Id, Address);
-        false ->
-            nop
-    end.
+    register_docker_a(Id, Address),
+    register_docker_ptr(Id, Address).
 
 
 register_docker_a(Id, Address) ->

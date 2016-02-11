@@ -13,6 +13,8 @@
 %% limitations under the License.
 
 -module(haystack_docker_network).
+-export([is_global/1]).
+-export([lookup/1]).
 -export([process/1]).
 
 -on_load(on_load/0).
@@ -21,48 +23,122 @@
            id,
            name,
            scope,
-           driver
+           driver,
+           gateway,
+           subnet
           }).
 
 on_load() ->
     haystack_table:reuse(?MODULE).
 
-add(Id, Name, Scope, Driver) ->
-    ets:insert(?MODULE, [r(Id, Name, Scope, Driver)]).
+add(Id, Name, Scope, Driver, Gateway, Subnet) ->
+    ets:insert(?MODULE, [r(Id, Name, Scope, Driver, Gateway, Subnet)]).
 
-r(Id, Name, Scope, Driver) ->
-    #?MODULE{id = Id, name = Name, scope = Scope, driver = Driver}.
+lookup(Id) ->
+    ets:lookup(?MODULE, Id).
+
+is_global(AddressAndMask) ->
+    case ets:match_object(
+           ?MODULE,
+           r('_',
+             '_',
+             <<"global">>,
+             '_',
+             '_',
+             haystack_inet:network(AddressAndMask))) of
+
+        [] ->
+            false;
+
+        [#?MODULE{}] ->
+            true
+    end.
+
+r(Id, Name, Scope, Driver, Gateway, Subnet) ->
+    #?MODULE{id = Id,
+             name = Name,
+             scope = Scope,
+             driver = Driver,
+             gateway = Gateway,
+             subnet = Subnet}.
 
 process(Networks) ->
+    process(<<"local">>, process(<<"global">>, #{}, Networks), Networks).
+
+process(Scope, Acc0, Networks) ->
     lists:foldl(
       fun
           (#{<<"Id">> := Id,
              <<"Name">> := Name,
-             <<"Scope">> := Scope,
              <<"Driver">> := Driver,
+             <<"IPAM">> := #{<<"Config">> := Config},
              <<"Containers">> := Containers}, A) ->
 
-              add(Id, Name, Scope, Driver),
-              maps:merge(
-                maps:fold(process_network_container(Id), #{}, Containers), A)
-      end,
-      #{},
-      jsx:decode(Networks, [return_maps])).
+              case Config of
+                  [#{<<"Gateway">> := Gateway,
+                     <<"Subnet">> := Subnet}] ->
+                      add(Id,
+                          Name,
+                          Scope,
+                          Driver,
+                          haystack_inet:cidr(Gateway),
+                          haystack_inet:cidr(Subnet));
 
-process_network_container(Network) ->
+                  [#{<<"Subnet">> := Subnet}] ->
+                      add(Id,
+                          Name,
+                          Scope,
+                          Driver,
+                          undefined,
+                          haystack_inet:cidr(Subnet));
+
+                  [] ->
+                      add(Id, Name, Scope, Driver, undefined, undefined)
+              end,
+              maps:merge(
+                maps:fold(network_container(Id), #{}, Containers), A)
+      end,
+      Acc0,
+      lists:filter(
+        is_scope(Scope),
+        Networks)).
+
+is_scope(Scope) ->
+    fun
+        (#{<<"Scope">> := S}) ->
+            S == Scope;
+        (_)  ->
+            false
+    end.
+
+
+
+network_container(Network) ->
     fun
         (Container, #{<<"IPv4Address">> := AddressWithMask,
                       <<"EndpointID">> := Endpoint,
                       <<"MacAddress">> := MacAddress,
                       <<"Name">> := Name}, A) ->
-            [Address, _Mask] = binary:split(AddressWithMask, <<"/">>),
-            case inet:parse_address(binary_to_list(Address)) of
-                {ok, IP} ->
-                    haystack_docker_container:add(
-                      Container, IP, Network, Endpoint, MacAddress, Name),
-                    A#{Container => IP};
 
-                {error, _} ->
+            case maps:find(Container, A) of
+                error ->
+                    [Address, _Mask] = binary:split(AddressWithMask, <<"/">>),
+                    case inet:parse_address(binary_to_list(Address)) of
+                        {ok, IP} ->
+                            haystack_docker_container:add(
+                              Container,
+                              IP,
+                              Network,
+                              Endpoint,
+                              MacAddress,
+                              Name),
+                            A#{Container => IP};
+
+                        {error, _} ->
+                            A
+                    end;
+
+                {ok, _} ->
                     A
             end
     end.

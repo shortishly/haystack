@@ -39,8 +39,9 @@ get_env(Name, Default) ->
     haystack:get_env(Name, [app_env, {default, Default}]).
 
 tracing() ->
-    list_to_existing_atom(haystack:get_env(haystack_tracing,
-                                           [os_env, {default, "false"}])).
+    list_to_existing_atom(
+      haystack:get_env(haystack_tracing,
+                       [os_env, {default, "false"}])).
 
 
 acceptors(http) ->
@@ -72,7 +73,4 @@ nameservers() ->
               {IP, 53}
       end,
       string:tokens(
-        haystack:get_env(
-          haystack_nameservers,
-          [os_env, {default, "8.8.8.8:8.8.4.4"}]),
-        ":")).
+        haystack:get_env(haystack_nameservers, [os_env, {default, ""}]), ":")).

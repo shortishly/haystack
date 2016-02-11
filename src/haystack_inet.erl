@@ -13,19 +13,41 @@
 %% limitations under the License.
 
 -module(haystack_inet).
+-export([cidr/1]).
 -export([getifaddrs/1]).
+-export([mask_bits/1]).
+-export([network/1]).
 
 getifaddrs(v4) ->
     {ok, Interfaces} = inet:getifaddrs(),
 
-    lists:filter(fun haystack_docker_util:is_same_network/1,
-                 lists:foldl(fun
-                                 ({_, Properties}, A) ->
-                                     [Addr ||
-                                         {_, _, _, _} = Addr <-
-                                             proplists:get_all_values(
-                                               addr, Properties),
-                                         Addr /= {127, 0, 0, 1}] ++ A
-                             end,
-                             [],
-                             Interfaces)).
+    lists:foldl(
+      fun
+          ({_, Properties}, A) ->
+              [#{address => Addr, mask => mask_bits(Mask)} ||
+                  {{_, _, _, _} = Addr, {_, _, _, _} = Mask} <-
+                      lists:zip(
+                        proplists:get_all_values(addr, Properties),
+                        proplists:get_all_values(netmask, Properties)),
+                  Addr /= {127, 0, 0, 1}] ++ A
+      end,
+      [],
+      Interfaces).
+
+cidr(AddressAndMask) ->
+    [Address, Mask] = binary:split(AddressAndMask, <<"/">>),
+    {ok, IP} = inet:parse_ipv4_address(binary_to_list(Address)),
+    #{address => IP, mask => binary_to_integer(Mask)}.
+
+network(#{address := {IP1, IP2, IP3, IP4}, mask := Mask}) ->
+    <<Network:Mask, _/bitstring>> = <<IP1, IP2, IP3, IP4>>,
+    <<Net1:8, Net2:8, Net3:8, Net4:8>> = <<Network:Mask, 0:(32-Mask)>>,
+    #{address => {Net1, Net2, Net3, Net4}, mask => Mask}.
+
+mask_bits({IP1, IP2, IP3, IP4}) ->
+    mask_bits(<<IP1, IP2, IP3, IP4>>, 0).
+
+mask_bits(<<1:1, Remainder/bitstring>>, A) ->
+    mask_bits(Remainder, A+1);
+mask_bits(<<0:1, _/bitstring>>, A) ->
+    A.

@@ -65,12 +65,28 @@ add(Id, Private, Type, Name, Origin) ->
                       Private,
                       Origin)]),
 
-        lists:foreach(
-          fun
-              (Address) ->
-                  haystack_node:add(Name, in, a, TTL, Address)
-          end,
-          haystack_inet:getifaddrs(v4))
+
+        Addresses = haystack_inet:getifaddrs(v4),
+
+        case lists:any(fun haystack_docker_network:is_global/1, Addresses) of
+            true ->
+                  lists:foreach(
+                    fun
+                        (#{address := Address}) ->
+                            haystack_node:add(Name, in, a, TTL, Address)
+                    end,
+                    lists:filter(
+                      fun haystack_docker_network:is_global/1,
+                      Addresses));
+
+            false ->
+                lists:foreach(
+                  fun
+                      (#{address := Address}) ->
+                          haystack_node:add(Name, in, a, TTL, Address)
+                  end,
+                  Addresses)
+        end
     catch _:badarg ->
             no_service_name_for_port
     end.
@@ -97,7 +113,7 @@ remove(Id) ->
                   [] ->
                       lists:foreach(
                         fun
-                            (Address) ->
+                            (#{address := Address}) ->
                                 haystack_node:remove(Name, in, a, TTL, Address)
                         end,
                         haystack_inet:getifaddrs(v4));

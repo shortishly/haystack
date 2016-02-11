@@ -26,11 +26,7 @@ lookup(Name, Class, Type) ->
 
 
 recursive(Name, Class, Type) ->
-    case inet_res:resolve(
-           haystack_name:stringify(Name),
-           Class,
-           Type,
-           [{nameservers, haystack_config:nameservers()}]) of
+    case resolve(haystack_name:stringify(Name), Class, Type) of
 
         {error, {nxdomain, _}} ->
             not_found;
@@ -48,6 +44,20 @@ recursive(Name, Class, Type) ->
 
         {ok, Response} ->
             [translate(Answer) || Answer <- inet_dns:msg(Response, anlist)]
+    end.
+
+
+resolve(Name, Class, Type) ->
+    case haystack_config:nameservers() of
+        [] ->
+            inet_res:resolve(Name, Class, Type);
+
+        Nameservers ->
+            inet_res:resolve(
+              Name,
+              Class,
+              Type,
+              [{nameservers, Nameservers}])
     end.
 
 

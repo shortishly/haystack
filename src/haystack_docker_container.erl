@@ -21,7 +21,7 @@
 -on_load(on_load/0).
 
 -record(?MODULE, {
-           id :: haystack_docker:id(),
+           id,
            addr :: inet:ip_address(),
            network,
            endpoint,
@@ -30,7 +30,7 @@
           }).
 
 on_load() ->
-    haystack_table:reuse(?MODULE).
+    haystack_table:reuse(?MODULE, bag).
 
 add(Id, Address, Network, Endpoint, MacAddress, Name) ->
     ets:insert(
@@ -40,11 +40,11 @@ add(Id, Address, Network, Endpoint, MacAddress, Name) ->
 
 lookup(Id) ->
     case ets:lookup(?MODULE, Id) of
-        [Match] ->
-            to_map(Match);
-
         [] ->
-            error({badarg, Id})
+            error({badarg, Id});
+
+        Matches ->
+            [to_map(Match) || Match <- Matches]
     end.
 
 
@@ -72,14 +72,8 @@ to_map(#?MODULE{addr = Addr, network = Network}) ->
 
 
 register_container(Id, Address) ->
-    case haystack_docker_util:is_same_network(Address) of
-        true ->
-            register_container_a(Id, Address),
-            register_container_ptr(Id, Address);
-
-        false ->
-            nop
-    end.
+    register_container_a(Id, Address),
+    register_container_ptr(Id, Address).
 
 
 register_container_a(Id, Address) ->
