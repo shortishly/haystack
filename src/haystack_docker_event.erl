@@ -74,5 +74,5 @@ process_container(#{<<"Config">> := #{<<"Image">> := Image},
 networks(State) ->
     case haystack_docker_util:request(["/networks"], State) of
         {ok, {{_, 200, _}, _, Networks}} ->
-            haystack_docker_network:process(Networks)
+            haystack_docker_network:process(jsx:decode(Networks, [return_maps]))
     end.
