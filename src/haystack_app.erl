@@ -48,8 +48,8 @@ dispatch(Prefix) ->
 
 resources(http) ->
     [{<<"localhost">>,
-      [{<<"/zones">>, haystack_zone_resource, []},
-       {<<"/secrets">>, haystack_secret_resource, []}]},
+      [{<<"/zones">>, dns_zone_resource, []},
+       {<<"/secrets">>, dns_secret_resource, []}]},
 
      {<<"[...].", (haystack_config:origin(services))/binary>>,
       [{'_',

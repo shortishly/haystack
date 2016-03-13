@@ -54,7 +54,7 @@ trace() ->
     trace(true).
 
 trace(true) ->
-    lists:foreach(fun code:ensure_loaded/1, modules()),
+    ensure_loaded(),
     case recon_trace:calls([m(Module) || Module <- modules()],
                            {1000, 500},
                            [{scope, local},

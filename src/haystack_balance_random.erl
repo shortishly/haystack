@@ -16,7 +16,7 @@
 -export([pick/2]).
 
 pick(Hostname, Path) ->
-    case haystack_node:find(haystack_name:labels(Hostname), in, srv) of
+    case dns_node:find(dns_name:labels(Hostname), in, srv) of
         not_found ->
             not_found;
 
@@ -28,7 +28,7 @@ pick(Hostname, Path) ->
     end.
 
 pick_one_from(#{data := #{target := Target, port := Port}}) ->
-    [#{data := Address} | _] = haystack_node:find(Target, in, a),
+    [#{data := Address} | _] = dns_node:find(Target, in, a),
     #{host => inet:ntoa(Address), port => Port};
 pick_one_from(Matches) ->
     pick_one_from(lists:nth(random:uniform(length(Matches)), Matches)).

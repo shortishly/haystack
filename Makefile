@@ -14,11 +14,14 @@
 # limitations under the License.
 #
 PROJECT = haystack
-PROJECT_DESCRIPTION = Domain Name Service
+PROJECT_DESCRIPTION = DNS based load balancer integrated with Docker
 PROJECT_VERSION = 0.2.2
 
 DEPS = \
+	any \
 	cowboy \
+	crown \
+	dns \
 	gproc \
 	gun \
 	jsx \
@@ -35,8 +38,10 @@ LOCAL_DEPS = \
 
 TEST_DEPS = pcapng
 
-dep_pcapng = git https://github.com/shortishly/pcapng.git master
-dep_cowboy = git https://github.com/ninenines/cowboy.git master
+dep_any = git https://github.com/shortishly/any.git master
+dep_cowboy = git https://github.com/ninenines/cowboy.git 2.0.0-pre.3
+dep_crown = git https://github.com/shortishly/crown.git master
+dep_dns = git https://github.com/shortishly/dns.git master
 dep_munchausen = git https://github.com/shortishly/munchausen.git master
 
 SHELL_OPTS = \

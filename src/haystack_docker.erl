@@ -327,7 +327,7 @@ register_docker(Id, Address) ->
 
 
 register_docker_a(Id, Address) ->
-    haystack_node:add(
+    dns_node:add(
       haystack_docker_util:docker_id(Id),
       in,
       a,
@@ -336,7 +336,7 @@ register_docker_a(Id, Address) ->
 
 
 register_docker_ptr(Id, {IP1, IP2, IP3, IP4}) ->
-    haystack_node:add(
+    dns_node:add(
       [integer_to_binary(IP4),
        integer_to_binary(IP3),
        integer_to_binary(IP2),

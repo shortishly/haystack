@@ -15,7 +15,6 @@
 -module(haystack_config).
 -export([acceptors/1]).
 -export([enabled/1]).
--export([nameservers/0]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
@@ -24,24 +23,19 @@
 
 
 port(udp) ->
-    get_env(udp_port, 53);
+    any:to_integer(get_env(udp_port, 53));
 port(http) ->
-    get_env(http_port, 80);
+    any:to_integer(get_env(http_port, 80));
 port(http_alt) ->
-    get_env(http_alt_port, 8080);
+    any:to_integer(get_env(http_alt_port, 8080));
 port(ssh) ->
-    get_env(ssh_port, 22).
+    any:to_integer(get_env(ssh_port, 22)).
 
 enabled(ssh) ->
-    get_env(ssh_enabled, true).
-
-get_env(Name, Default) ->
-    haystack:get_env(Name, [app_env, {default, Default}]).
+    any:to_boolean(get_env(ssh_enabled, true)).
 
 tracing() ->
-    list_to_existing_atom(
-      haystack:get_env(haystack_tracing,
-                       [os_env, {default, "false"}])).
+    any:to_boolean(get_env(haystack_tracing, false)).
 
 
 acceptors(http) ->
@@ -52,6 +46,10 @@ acceptors(http_alt) ->
 tsig_rr_fudge() ->
     300.
 
+
+origin() ->
+    any:to_binary(get_env(haystack_origin, haystack)).
+
 origin(services) ->
     <<"services.", (origin())/binary>>;
 
@@ -61,16 +59,6 @@ origin(dockers) ->
 origin(containers) ->
     <<"containers.", (origin())/binary>>.
 
-origin() ->
-    list_to_binary(haystack:get_env(haystack_origin,
-                                    [os_env, {default, "haystack"}])).
 
-nameservers() ->
-    lists:map(
-      fun
-          (Address) ->
-              {ok, IP} = inet:parse_ipv4_address(Address),
-              {IP, 53}
-      end,
-      string:tokens(
-        haystack:get_env(haystack_nameservers, [os_env, {default, ""}]), ":")).
+get_env(Name, Default) ->
+    haystack:get_env(Name, [os_env, app_env, {default, Default}]).
