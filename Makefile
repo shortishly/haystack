@@ -36,8 +36,6 @@ LOCAL_DEPS = \
 	ssh \
 	tools
 
-TEST_DEPS = pcapng
-
 dep_any = git https://github.com/shortishly/any.git master
 dep_cowboy = git https://github.com/ninenines/cowboy.git 2.0.0-pre.3
 dep_crown = git https://github.com/shortishly/crown.git master

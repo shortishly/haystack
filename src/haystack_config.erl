@@ -50,6 +50,9 @@ tsig_rr_fudge() ->
 origin() ->
     any:to_binary(get_env(haystack_origin, haystack)).
 
+origin(ns) ->
+    <<"ns.", (origin())/binary>>;
+
 origin(services) ->
     <<"services.", (origin())/binary>>;
 

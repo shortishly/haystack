@@ -43,7 +43,7 @@ process(_, State) ->
 inspect_container(Id, State) ->
     case haystack_docker_util:request(["/containers/", Id, "/json"], State) of
         {ok, {{_, 200, _}, _, Body}} ->
-            process_container(jsx:decode(Body, [return_maps]));
+            process_container(haystack_jsx:decode(Body));
 
         {ok, {{_, 404, _}, _, _}} ->
             error_logger:info_report([{module, ?MODULE},
@@ -74,5 +74,5 @@ process_container(#{<<"Config">> := #{<<"Image">> := Image},
 networks(State) ->
     case haystack_docker_util:request(["/networks"], State) of
         {ok, {{_, 200, _}, _, Networks}} ->
-            haystack_docker_network:process(Networks)
+            haystack_docker_network:process(haystack_jsx:decode(Networks))
     end.

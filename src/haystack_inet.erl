@@ -35,9 +35,15 @@ getifaddrs(v4) ->
       Interfaces).
 
 cidr(AddressAndMask) ->
-    [Address, Mask] = binary:split(AddressAndMask, <<"/">>),
-    {ok, IP} = inet:parse_ipv4_address(binary_to_list(Address)),
-    #{address => IP, mask => binary_to_integer(Mask)}.
+    case binary:split(AddressAndMask, <<"/">>) of
+        [Address, Mask] ->
+            {ok, IP} = inet:parse_ipv4_address(binary_to_list(Address)),
+            #{address => IP, mask => binary_to_integer(Mask)};
+
+        [Address] ->
+            {ok, IP} = inet:parse_ipv4_address(binary_to_list(Address)),
+            #{address => IP}
+    end.
 
 network(#{address := {IP1, IP2, IP3, IP4}, mask := Mask}) ->
     <<Network:Mask, _/bitstring>> = <<IP1, IP2, IP3, IP4>>,

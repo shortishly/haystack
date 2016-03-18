@@ -25,9 +25,6 @@
 on_load() ->
     crown_table:new(?MODULE, bag),
     try
-        {ok, Services} = haystack:priv_read_file(
-                           "service-names-port-numbers.csv"),
-
         ets:insert(
           ?MODULE,
           lists:foldl(
@@ -56,9 +53,11 @@ on_load() ->
                     end
             end,
             [],
-            tl(binary:split(Services,
-                            <<"\r\n">>,
-                            [global])))),
+            tl(binary:split(
+                 haystack:priv_read_file(
+                   "service-names-port-numbers.csv"),
+                 <<"\r\n">>,
+                 [global])))),
         ok
     catch _:badarg ->
             ok

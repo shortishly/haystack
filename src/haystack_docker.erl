@@ -113,7 +113,7 @@ handle_info({gun_data, Gun, Info, fin, Data},
               partial := Partial,
               host := Host} = State) ->
 
-    case jsx:decode(<<Partial/binary, Data/binary>>, [return_maps]) of
+    case haystack_jsx:decode(<<Partial/binary, Data/binary>>) of
 
         #{<<"ID">> := <<>>} ->
             {noreply,
@@ -167,7 +167,7 @@ handle_info({gun_data, Gun, Networks, fin, Data},
             #{networks := Networks,
               partial := Partial} = State) ->
     haystack_docker_network:process(
-      jsx:decode(<<Partial/binary, Data/binary>>, [return_maps])),
+      haystack_jsx:decode(<<Partial/binary, Data/binary>>)),
     {noreply, maps:without(
                 [networks], State#{
                               partial => <<>>,
@@ -277,14 +277,14 @@ read_file(Path, File) ->
 
 
 process_containers(Containers) ->
-    haystack_docker_container:process(jsx:decode(Containers, [return_maps])).
+    haystack_docker_container:process(haystack_jsx:decode(Containers)).
 
 process_events(Events, State) ->
     case {binary:match(Events, <<"\n">>), binary:match(Events, <<"}{">>)} of
         {nomatch, nomatch} ->
             try
                 haystack_docker_event:process(
-                  jsx:decode(Events, [return_maps]), State#{partial => <<>>})
+                  haystack_jsx:decode(Events), State#{partial => <<>>})
 
             catch _:badarg ->
                     State#{partial => Events}
@@ -295,7 +295,7 @@ process_events(Events, State) ->
                 [Event, Remainder] ->
                     process_events(Remainder,
                                    haystack_docker_event:process(
-                                     jsx:decode(Event, [return_maps]), State));
+                                     haystack_jsx:decode(Event), State));
 
                 [Partial] ->
                     State#{partial => Partial};
@@ -309,8 +309,8 @@ process_events(Events, State) ->
                 [Event, Remainder] ->
                     process_events(<<"{", Remainder/binary>>,
                                    haystack_docker_event:process(
-                                     jsx:decode(<<Event/binary, "}">>,
-                                                [return_maps]), State));
+                                     haystack_jsx:decode(<<Event/binary, "}">>),
+                                     State));
 
                 [Partial] ->
                     process_events(Partial, State#{partial => <<>>});
@@ -346,4 +346,4 @@ register_docker_ptr(Id, {IP1, IP2, IP3, IP4}) ->
       in,
       ptr,
       haystack_docker_util:ttl(),
-      #{name => haystack_docker_util:docker_id(Id)}).
+      haystack_docker_util:docker_id(Id)).

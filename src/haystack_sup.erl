@@ -31,7 +31,7 @@ start_link() ->
 
 init([]) ->
     Procs = [supervisor(haystack_docker_sup),
-             worker(haystack_udp_request)],
+             worker(haystack_sshd)],
     {ok, {#{intensity => 5, period => 5}, Procs}}.
 
 supervisor(Module) ->

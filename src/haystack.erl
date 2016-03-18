@@ -84,4 +84,5 @@ priv_file(Filename) ->
     filename:join(priv_dir(), Filename).
 
 priv_read_file(Filename) ->
-    file:read_file(priv_file(Filename)).
+    {ok, Contents} = file:read_file(priv_file(Filename)),
+    Contents.
