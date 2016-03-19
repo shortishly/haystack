@@ -13,6 +13,7 @@
 %% limitations under the License.
 
 -module(haystack_date).
+
 -export([epoch/0]).
 -export([right_now/0]).
 -export([seconds_elapsed_since/1]).

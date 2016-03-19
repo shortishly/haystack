@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2015 Peter Morgan <peter.james.morgan@gmail.com>
+%% Copyright (c) 2012-2016 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -30,8 +30,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    Procs = [supervisor(haystack_docker_sup),
-             worker(haystack_sshd)],
+    Procs = [supervisor(haystack_docker_sup)],
     {ok, {#{intensity => 5, period => 5}, Procs}}.
 
 supervisor(Module) ->

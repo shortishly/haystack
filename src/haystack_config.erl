@@ -13,8 +13,8 @@
 %% limitations under the License.
 
 -module(haystack_config).
+
 -export([acceptors/1]).
--export([enabled/1]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
@@ -23,32 +23,27 @@
 
 
 port(udp) ->
-    any:to_integer(get_env(udp_port, 53));
+    envy:to_integer(haystack, udp_port, default(53));
 port(http) ->
-    any:to_integer(get_env(http_port, 80));
+    envy:to_integer(haystack, http_port, default(80));
 port(http_alt) ->
-    any:to_integer(get_env(http_alt_port, 8080));
-port(ssh) ->
-    any:to_integer(get_env(ssh_port, 22)).
-
-enabled(ssh) ->
-    any:to_boolean(get_env(ssh_enabled, true)).
+    envy:to_integer(haystack, http_alt_port, default(8080)).
 
 tracing() ->
-    any:to_boolean(get_env(haystack_tracing, false)).
+    envy:to_boolean(haystack, tracing, default(false)).
 
 
 acceptors(http) ->
-    100;
+    envy:to_integer(haystack, http_acceptors, default(100));
 acceptors(http_alt) ->
-    100.
+    envy:to_integer(haystack, http_alt_acceptors, default(100)).
 
 tsig_rr_fudge() ->
-    300.
+    envy:to_integer(haystack, tsig_rr_fudge, default(300)).
 
 
 origin() ->
-    any:to_binary(get_env(haystack_origin, haystack)).
+    envy:to_binary(haystack, origin, default(<<"haystack">>)).
 
 origin(ns) ->
     <<"ns.", (origin())/binary>>;
@@ -63,5 +58,5 @@ origin(containers) ->
     <<"containers.", (origin())/binary>>.
 
 
-get_env(Name, Default) ->
-    haystack:get_env(Name, [os_env, app_env, {default, Default}]).
+default(Default) ->
+    [os_env, app_env, {default, Default}].

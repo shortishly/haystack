@@ -13,6 +13,7 @@
 %% limitations under the License.
 
 -module(haystack).
+
 -export([ensure_loaded/0]).
 -export([get_env/1]).
 -export([get_env/2]).

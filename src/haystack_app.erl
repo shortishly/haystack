@@ -15,6 +15,7 @@
 -module(haystack_app).
 -behaviour(application).
 
+-export([load/1]).
 -export([start/2]).
 -export([stop/1]).
 
