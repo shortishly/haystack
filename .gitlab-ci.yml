@@ -14,3 +14,12 @@ app:
     - docker push reg001.local:5000/shortishly/haystack
   only:
     - master
+
+app:
+  stage: build
+  script:
+    - make
+    - docker build --pull=true --no-cache=true --force-rm=true -t reg001.local:5000/shortishly/haystack:develop .
+    - docker push reg001.local:5000/shortishly/haystack:develop
+  only:
+    - develop
