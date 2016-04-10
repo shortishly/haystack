@@ -22,6 +22,6 @@ app:
     - make
     - docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
     - docker tag $(bin/release_name):$(bin/version) $DOCKER_USERNAME/$(bin/app):develop
-    - docker push $DOCKER_USERNAME/$(bin/app):$(bin/version)
+    - docker push $DOCKER_USERNAME/$(bin/app):develop
   only:
     - develop
