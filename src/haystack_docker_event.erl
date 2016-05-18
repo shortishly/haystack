@@ -16,22 +16,20 @@
 -export([process/2]).
 
 process(#{<<"id">> := Id,
-          <<"time">> := Time,
+          <<"time">> := _Time,
           <<"status">> := Status},
-        #{start_time := StartTime} = State)
+        #{start_time := _StartTime} = State)
   when (Status == <<"die">> orelse
-        Status == <<"pause">>) andalso
-       (Time > StartTime) ->
+        Status == <<"pause">>) ->
     haystack_docker_container:remove(Id),
     State;
 
 process(#{<<"id">> := Id,
-          <<"time">> := Time,
+          <<"time">> := _Time,
           <<"status">> := Status},
-        #{start_time := StartTime} = State)
+        #{start_time := _StartTime} = State)
   when (Status == <<"start">> orelse
-        Status == <<"unpause">>) andalso
-       (Time > StartTime) ->
+        Status == <<"unpause">>) ->
     networks(State),
     inspect_container(Id, State),
     State;
