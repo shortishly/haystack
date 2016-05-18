@@ -15,6 +15,7 @@
 -module(haystack_config).
 
 -export([acceptors/1]).
+-export([enabled/1]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
@@ -31,6 +32,9 @@ port(http_alt) ->
 
 tracing() ->
     envy:to_boolean(haystack, tracing, default(false)).
+
+enabled(debug) ->
+    envy(to_boolean, debug, false).
 
 
 acceptors(http) ->
@@ -57,6 +61,8 @@ origin(dockers) ->
 origin(containers) ->
     <<"containers.", (origin())/binary>>.
 
+envy(To, Name, Default) ->
+    envy:To(haystack, Name, default(Default)).
 
 default(Default) ->
     [os_env, app_env, {default, Default}].
