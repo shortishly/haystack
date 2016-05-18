@@ -24,6 +24,8 @@
 -export([handle_cast/2]).
 -export([handle_info/2]).
 -export([init/1]).
+-export([start_link/2]).
+-export([start_link/4]).
 -export([terminate/2]).
 
 -include_lib("kernel/include/inet.hrl").
@@ -37,56 +39,63 @@
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
-
-init([]) ->
     case connection() of
         {ok, #{host := Host,
                port := Port,
                cert := Cert,
                key := Key}} ->
-
-            case gun:open(Host,
-                          Port,
-                          #{transport => ssl,
-                            transport_opts => haystack_docker_util:ssl(Cert,
-                                                                       Key)}) of
-                {ok, Pid} ->
-                    {ok, #{docker => Pid,
-                           monitor => monitor(process, Pid),
-                           partial => <<>>,
-                           host => Host,
-                           port => Port,
-                           cert => Cert,
-                           key => Key}};
-
-                {error, Reason} ->
-                    {stop, Reason}
-            end;
+            start_link(Host, Port, Cert, Key);
 
         {ok, #{host := Host,
                port := Port}} ->
+            start_link(Host, Port);
 
-            case gun:open(Host,
-                          Port,
-                          #{transport => tcp}) of
-                {ok, Pid} ->
-                    {ok, #{docker => Pid,
-                           monitor => monitor(process, Pid),
-                           partial => <<>>,
-                           host => Host,
-                           port => Port}};
+        {error, _} = Error ->
+            Error
+    end.
 
-                {error, Reason} ->
-                    {stop, Reason}
-            end;
+start_link(Host, Port) ->
+    gen_server:start_link(ref({Host, Port}), ?MODULE, [Host, Port], []).
+
+start_link(Host, Port, Cert, Key) ->
+    gen_server:start_link(ref({Host, Port, Cert, Key}), ?MODULE, [Host, Port, Cert, Key], []).
+
+ref(Name) ->
+    {via, gproc, {n, l, ?MODULE, Name}}.
+
+
+init([Host, Port, Cert, Key]) ->
+    case gun:open(Host,
+                  Port,
+                  #{transport => ssl,
+                    transport_opts => haystack_docker_util:ssl(Cert,
+                                                               Key)}) of
+        {ok, Pid} ->
+            {ok, #{docker => Pid,
+                   monitor => monitor(process, Pid),
+                   partial => <<>>,
+                   host => Host,
+                   port => Port,
+                   cert => Cert,
+                   key => Key}};
 
         {error, Reason} ->
-            error_logger:error_report([{module, ?MODULE},
-                                       {line, ?LINE},
-                                       {reason, Reason}]),
-            ignore
+            {stop, Reason}
+    end;
+
+init([Host, Port]) ->
+    case gun:open(Host,
+                  Port,
+                  #{transport => tcp}) of
+        {ok, Pid} ->
+            {ok, #{docker => Pid,
+                   monitor => monitor(process, Pid),
+                   partial => <<>>,
+                   host => Host,
+                   port => Port}};
+
+        {error, Reason} ->
+            {stop, Reason}
     end.
 
 handle_call(_, _, State) ->
