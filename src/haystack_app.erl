@@ -22,6 +22,7 @@
 start(_Type, _Args) ->
     try
         {ok, Sup} = haystack_sup:start_link(),
+        [haystack:trace(true) || haystack_config:enabled(debug)],
         load("localhost.zone"),
         soa(haystack_config:origin()),
         {ok, Sup, #{listeners => [start_http(http),
