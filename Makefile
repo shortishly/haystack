@@ -25,7 +25,6 @@ DEPS = \
 	gproc \
 	gun \
 	jsx \
-	mdns \
 	munchausen \
 	recon \
 	shelly
@@ -42,7 +41,6 @@ dep_cowboy = git https://github.com/ninenines/cowboy.git 2.0.0-pre.3
 dep_crown = git https://github.com/shortishly/crown.git master
 dep_dns = git https://github.com/shortishly/dns.git master
 dep_envy = git https://github.com/shortishly/envy.git master
-dep_mdns = git https://github.com/shortishly/mdns.git master
 dep_munchausen = git https://github.com/shortishly/munchausen.git master
 dep_shelly = git https://github.com/shortishly/shelly.git master
 
