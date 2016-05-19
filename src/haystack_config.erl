@@ -15,39 +15,50 @@
 -module(haystack_config).
 
 -export([acceptors/1]).
+-export([docker/1]).
 -export([enabled/1]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
--export([tracing/0]).
 -export([tsig_rr_fudge/0]).
 
 
-port(udp) ->
-    envy:to_integer(haystack, udp_port, default(53));
-port(http) ->
-    envy:to_integer(haystack, http_port, default(80));
-port(http_alt) ->
-    envy:to_integer(haystack, http_alt_port, default(8080)).
+%% We are not using envy for the following docker environment variable
+%% lookups because we don't want to prefix the environment variable
+%% with the haystack application name.
+docker(host) ->
+    haystack:get_env(docker_host, [os_env]);
+docker(cert_path) ->
+    haystack:get_env(docker_cert_path, [os_env]);
+docker(cert) ->
+    haystack:get_env(docker_cert, [os_env]);
+docker(key) ->
+    haystack:get_env(docker_key, [os_env]).
 
-tracing() ->
-    envy:to_boolean(haystack, tracing, default(false)).
+
+
+port(udp) ->
+    envy(to_integer, udp_port, 53);
+port(http) ->
+    envy(to_integer, http_port, 80);
+port(http_alt) ->
+    envy(to_integer, http_alt_port, 8080).
 
 enabled(debug) ->
     envy(to_boolean, debug, false).
 
 
 acceptors(http) ->
-    envy:to_integer(haystack, http_acceptors, default(100));
+    envy(to_integer, http_acceptors, 100);
 acceptors(http_alt) ->
-    envy:to_integer(haystack, http_alt_acceptors, default(100)).
+    envy(to_integer, http_alt_acceptors, 100).
 
 tsig_rr_fudge() ->
-    envy:to_integer(haystack, tsig_rr_fudge, default(300)).
+    envy(to_integer, tsig_rr_fudge, 300).
 
 
 origin() ->
-    envy:to_binary(haystack, origin, default(<<"haystack">>)).
+    envy(to_binary, origin, <<"haystack">>).
 
 origin(ns) ->
     <<"ns.", (origin())/binary>>;
