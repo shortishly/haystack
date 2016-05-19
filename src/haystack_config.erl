@@ -13,44 +13,55 @@
 %% limitations under the License.
 
 -module(haystack_config).
+
 -export([acceptors/1]).
+-export([docker/1]).
 -export([enabled/1]).
--export([nameservers/0]).
 -export([origin/0]).
 -export([origin/1]).
 -export([port/1]).
--export([tracing/0]).
 -export([tsig_rr_fudge/0]).
 
 
+%% We are not using envy for the following docker environment variable
+%% lookups because we don't want to prefix the environment variable
+%% with the haystack application name.
+docker(host) ->
+    haystack:get_env(docker_host, [os_env]);
+docker(cert_path) ->
+    haystack:get_env(docker_cert_path, [os_env]);
+docker(cert) ->
+    haystack:get_env(docker_cert, [os_env]);
+docker(key) ->
+    haystack:get_env(docker_key, [os_env]).
+
+
+
 port(udp) ->
-    get_env(udp_port, 53);
+    envy(to_integer, udp_port, 53);
 port(http) ->
-    get_env(http_port, 80);
+    envy(to_integer, http_port, 80);
 port(http_alt) ->
-    get_env(http_alt_port, 8080);
-port(ssh) ->
-    get_env(ssh_port, 22).
+    envy(to_integer, http_alt_port, 8080).
 
-enabled(ssh) ->
-    get_env(ssh_enabled, true).
-
-get_env(Name, Default) ->
-    haystack:get_env(Name, [app_env, {default, Default}]).
-
-tracing() ->
-    list_to_existing_atom(
-      haystack:get_env(haystack_tracing,
-                       [os_env, {default, "false"}])).
+enabled(debug) ->
+    envy(to_boolean, debug, false).
 
 
 acceptors(http) ->
-    100;
+    envy(to_integer, http_acceptors, 100);
 acceptors(http_alt) ->
-    100.
+    envy(to_integer, http_alt_acceptors, 100).
 
 tsig_rr_fudge() ->
-    300.
+    envy(to_integer, tsig_rr_fudge, 300).
+
+
+origin() ->
+    envy(to_binary, origin, <<"haystack">>).
+
+origin(ns) ->
+    <<"ns.", (origin())/binary>>;
 
 origin(services) ->
     <<"services.", (origin())/binary>>;
@@ -61,16 +72,8 @@ origin(dockers) ->
 origin(containers) ->
     <<"containers.", (origin())/binary>>.
 
-origin() ->
-    list_to_binary(haystack:get_env(haystack_origin,
-                                    [os_env, {default, "haystack"}])).
+envy(To, Name, Default) ->
+    envy:To(haystack, Name, default(Default)).
 
-nameservers() ->
-    lists:map(
-      fun
-          (Address) ->
-              {ok, IP} = inet:parse_ipv4_address(Address),
-              {IP, 53}
-      end,
-      string:tokens(
-        haystack:get_env(haystack_nameservers, [os_env, {default, ""}]), ":")).
+default(Default) ->
+    [os_env, app_env, {default, Default}].

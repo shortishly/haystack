@@ -23,39 +23,41 @@
           }).
 
 on_load() ->
-    haystack_table:new(?MODULE, bag),
+    crown_table:new(?MODULE, bag),
     try
-        {ok, Services} = haystack:priv_read_file(
-                           "service-names-port-numbers.csv"),
+        ets:insert(
+          ?MODULE,
+          lists:foldl(
+            fun
+                (Row, A) ->
+                    case binary:split(
+                           Row, <<",">>, [global]) of
 
-        ets:insert(?MODULE,
-                   lists:foldl(fun(Row, A) ->
-                                       case binary:split(
-                                              Row, <<",">>, [global]) of
+                        [_] ->
+                            A;
 
-                                           [_] ->
-                                               A;
+                        [<<>> | _] ->
+                            A;
 
-                                           [<<>> | _] ->
-                                               A;
+                        [<<"www", _/binary>> | _] ->
+                            A;
 
-                                           [<<"www", _/binary>> | _] ->
-                                               A;
-
-                                           [Service, Port, Protocol | _] ->
-                                               try
-                                                   [r(Service,
-                                                      binary_to_integer(Port),
-                                                      Protocol) | A]
-                                               catch _:badarg ->
-                                                       A
-                                               end
-                                       end
-                               end,
-                               [],
-                               tl(binary:split(Services,
-                                               <<"\r\n">>,
-                                               [global])))),
+                        [Service, Port, Protocol | _] ->
+                            try
+                                [r(Service,
+                                   binary_to_integer(Port),
+                                   Protocol) | A]
+                            catch _:badarg ->
+                                    A
+                            end
+                    end
+            end,
+            [],
+            tl(binary:split(
+                 haystack:priv_read_file(
+                   "service-names-port-numbers.csv"),
+                 <<"\r\n">>,
+                 [global])))),
         ok
     catch _:badarg ->
             ok

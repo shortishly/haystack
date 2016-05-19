@@ -89,12 +89,12 @@ container_id(<<_:64/bytes>> = Id) ->
 
 
 id(Prefix, Id, Origin) ->
-    haystack_name:labels(<<
-                           Prefix/binary,
-                           (hash(Id))/binary,
-                           ".",
-                           (haystack_config:origin(Origin))/binary
-                         >>).
+    dns_name:labels(<<
+                      Prefix/binary,
+                      (hash(Id))/binary,
+                      ".",
+                      (haystack_config:origin(Origin))/binary
+                    >>).
 
 
 hash(Name) ->

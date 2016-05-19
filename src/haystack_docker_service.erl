@@ -32,7 +32,7 @@
 
 
 on_load() ->
-    haystack_table:reuse(?MODULE, bag).
+    crown_table:reuse(?MODULE, bag).
 
 
 r(Id, Name, Class, Type, TTL, Priority, Weight, Port, Target) ->
@@ -73,7 +73,7 @@ add(Id, Private, Type, Name, Origin) ->
                   lists:foreach(
                     fun
                         (#{address := Address}) ->
-                            haystack_node:add(Name, in, a, TTL, Address)
+                            dns_node:add(Name, in, a, TTL, Address)
                     end,
                     lists:filter(
                       fun haystack_docker_network:is_global/1,
@@ -83,7 +83,7 @@ add(Id, Private, Type, Name, Origin) ->
                 lists:foreach(
                   fun
                       (#{address := Address}) ->
-                          haystack_node:add(Name, in, a, TTL, Address)
+                          dns_node:add(Name, in, a, TTL, Address)
                   end,
                   Addresses)
         end
@@ -114,7 +114,7 @@ remove(Id) ->
                       lists:foreach(
                         fun
                             (#{address := Address}) ->
-                                haystack_node:remove(Name, in, a, TTL, Address)
+                                dns_node:remove(Name, in, a, TTL, Address)
                         end,
                         haystack_inet:getifaddrs(v4));
 
@@ -142,7 +142,7 @@ remove(Id) ->
 
 
 remove_srv(Name, Class, Type, TTL, Priority, Weight, Private, Target) ->
-    haystack_node:remove(
+    dns_node:remove(
       [<<"_", (haystack_inet_service:lookup(Private,Type))/binary>>,
        <<"_", Type/binary>> | Name],
       Class,
@@ -156,7 +156,7 @@ remove_srv(Name, Class, Type, TTL, Priority, Weight, Private, Target) ->
 
 
 add_srv(Name, Class, Type, TTL, Priority, Weight, Private, Target) ->
-    haystack_node:add(
+    dns_node:add(
       [<<"_", (haystack_inet_service:lookup(Private, Type))/binary>>,
        <<"_", Type/binary>> | Name],
       Class,

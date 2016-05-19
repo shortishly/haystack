@@ -16,22 +16,20 @@
 -export([process/2]).
 
 process(#{<<"id">> := Id,
-          <<"time">> := Time,
+          <<"time">> := _Time,
           <<"status">> := Status},
-        #{start_time := StartTime} = State)
+        #{start_time := _StartTime} = State)
   when (Status == <<"die">> orelse
-        Status == <<"pause">>) andalso
-       (Time > StartTime) ->
+        Status == <<"pause">>) ->
     haystack_docker_container:remove(Id),
     State;
 
 process(#{<<"id">> := Id,
-          <<"time">> := Time,
+          <<"time">> := _Time,
           <<"status">> := Status},
-        #{start_time := StartTime} = State)
+        #{start_time := _StartTime} = State)
   when (Status == <<"start">> orelse
-        Status == <<"unpause">>) andalso
-       (Time > StartTime) ->
+        Status == <<"unpause">>) ->
     networks(State),
     inspect_container(Id, State),
     State;
@@ -43,7 +41,7 @@ process(_, State) ->
 inspect_container(Id, State) ->
     case haystack_docker_util:request(["/containers/", Id, "/json"], State) of
         {ok, {{_, 200, _}, _, Body}} ->
-            process_container(jsx:decode(Body, [return_maps]));
+            process_container(haystack_jsx:decode(Body));
 
         {ok, {{_, 404, _}, _, _}} ->
             error_logger:info_report([{module, ?MODULE},
@@ -74,5 +72,5 @@ process_container(#{<<"Config">> := #{<<"Image">> := Image},
 networks(State) ->
     case haystack_docker_util:request(["/networks"], State) of
         {ok, {{_, 200, _}, _, Networks}} ->
-            haystack_docker_network:process(jsx:decode(Networks, [return_maps]))
+            haystack_docker_network:process(haystack_jsx:decode(Networks))
     end.

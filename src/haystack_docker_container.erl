@@ -30,7 +30,7 @@
           }).
 
 on_load() ->
-    haystack_table:reuse(?MODULE, bag).
+    crown_table:reuse(?MODULE, bag).
 
 add(Id, Address, Network, Endpoint, MacAddress, Name) ->
     ets:insert(
@@ -77,7 +77,7 @@ register_container(Id, Address) ->
 
 
 register_container_a(Id, Address) ->
-    haystack_node:add(
+    dns_node:add(
       haystack_docker_util:container_id(Id),
       in,
       a,
@@ -86,7 +86,7 @@ register_container_a(Id, Address) ->
 
 
 register_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
-    haystack_node:add(
+    dns_node:add(
       [integer_to_binary(IP4),
        integer_to_binary(IP3),
        integer_to_binary(IP2),
@@ -96,7 +96,7 @@ register_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
       in,
       ptr,
       haystack_docker_util:ttl(),
-      #{name => haystack_docker_util:container_id(Id)}).
+      haystack_docker_util:container_id(Id)).
 
 
 unregister_container(Id, Address) ->
@@ -105,7 +105,7 @@ unregister_container(Id, Address) ->
 
 
 unregister_container_a(Id, Address) ->
-    haystack_node:remove(
+    dns_node:remove(
       haystack_docker_util:container_id(Id),
       in,
       a,
@@ -114,7 +114,7 @@ unregister_container_a(Id, Address) ->
 
 
 unregister_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
-    haystack_node:remove(
+    dns_node:remove(
       [integer_to_binary(IP4),
        integer_to_binary(IP3),
        integer_to_binary(IP2),
@@ -124,7 +124,7 @@ unregister_container_ptr(Id, {IP1, IP2, IP3, IP4}) ->
       in,
       ptr,
       haystack_docker_util:ttl(),
-      #{name => haystack_docker_util:container_id(Id)}).
+      haystack_docker_util:container_id(Id)).
 
 
 process(Containers) ->
@@ -162,7 +162,7 @@ container_name([<<"/", Name/binary>>], Image) ->
     container_name([Name], Image);
 container_name([Name], Image) ->
     Common = [image_name(Image) |
-              haystack_name:labels(haystack_config:origin(services))],
+              dns_name:labels(haystack_config:origin(services))],
     try
         case binary:split(Name, <<"-">>, [global]) of
             [Prefix, Suffix] ->
@@ -176,7 +176,7 @@ container_name([Name], Image) ->
     end;
 container_name(_, Image) ->
     [image_name(Image) |
-     haystack_name:labels(haystack_config:origin(services))].
+     dns_name:labels(haystack_config:origin(services))].
 
 
 image_name(Image) ->

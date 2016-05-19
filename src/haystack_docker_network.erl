@@ -29,7 +29,7 @@
           }).
 
 on_load() ->
-    haystack_table:reuse(?MODULE).
+    crown_table:reuse(?MODULE).
 
 add(Id, Name, Scope, Driver, Gateway, Subnet) ->
     ets:insert(?MODULE, [r(Id, Name, Scope, Driver, Gateway, Subnet)]).

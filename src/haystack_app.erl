@@ -15,12 +15,16 @@
 -module(haystack_app).
 -behaviour(application).
 
+-export([load/1]).
 -export([start/2]).
 -export([stop/1]).
 
 start(_Type, _Args) ->
     try
         {ok, Sup} = haystack_sup:start_link(),
+        [haystack:trace(true) || haystack_config:enabled(debug)],
+        load("localhost.zone"),
+        soa(haystack_config:origin()),
         {ok, Sup, #{listeners => [start_http(http),
                                   start_http(http_alt)]}}
     catch
@@ -32,6 +36,23 @@ stop(#{listeners := Listeners}) ->
     lists:foreach(fun cowboy:stop_listener/1, Listeners);
 stop(_State) ->
     ok.
+
+load(Zone) ->
+    dns_zone:process(haystack:priv_read_file(Zone)).
+
+soa(Domain) ->
+    dns_node:add(
+      dns_name:labels(Domain),
+      in,
+      soa,
+      655360,
+      #{m_name => dns_name:labels(haystack_config:origin(ns)),
+        r_name => dns_name:labels(haystack_config:origin(ns)),
+        serial => 0,
+        refresh => 0,
+        retry => 0,
+        expire => 0,
+        minimum => 0}).
 
 
 start_http(Prefix) ->
@@ -48,18 +69,16 @@ dispatch(Prefix) ->
 
 resources(http) ->
     [{<<"localhost">>,
-      [{<<"/zones">>, haystack_zone_resource, []},
-       {<<"/secrets">>, haystack_secret_resource, []}]},
-
-     {<<"[...].", (haystack_config:origin(services))/binary>>,
-      [{'_',
-        munchausen_http_proxy_resource,
-        #{prefix => <<"_http._tcp.">>,
-          balancer => haystack_balance_random}}]}];
+      [{<<"/zones">>, dns_zone_resource, []},
+       {<<"/secrets">>, dns_secret_resource, []}]},
+     munchausen_proxy(<<"_http._tcp.">>)];
 
 resources(http_alt) ->
-    [{<<"[...].", (haystack_config:origin(services))/binary>>,
-      [{'_',
-        munchausen_http_proxy_resource,
-        #{prefix => <<"_http-alt._tcp.">>,
-          balancer => haystack_balance_random}}]}].
+    [munchausen_proxy(<<"_http-alt._tcp.">>)].
+
+munchausen_proxy(Prefix) ->
+    {<<"[...].", (haystack_config:origin(services))/binary>>,
+     [{'_',
+       munchausen_http_proxy_resource,
+       #{prefix => Prefix,
+         balancer => haystack_balance_random}}]}.

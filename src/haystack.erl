@@ -13,6 +13,7 @@
 %% limitations under the License.
 
 -module(haystack).
+
 -export([ensure_loaded/0]).
 -export([get_env/1]).
 -export([get_env/2]).
@@ -44,9 +45,11 @@ get_env(Key) ->
 ensure_loaded() ->
     lists:foreach(fun code:ensure_loaded/1, modules()).
 
-
 modules() ->
-    {ok, Modules} = application:get_key(?MODULE, modules),
+    modules(?MODULE).
+
+modules(Application) ->
+    {ok, Modules} = application:get_key(Application, modules),
     Modules.
 
 
@@ -54,9 +57,9 @@ trace() ->
     trace(true).
 
 trace(true) ->
-    lists:foreach(fun code:ensure_loaded/1, modules()),
+    ensure_loaded(),
     case recon_trace:calls([m(Module) || Module <- modules()],
-                           {1000, 500},
+                           {500000,1000},
                            [{scope, local},
                             {pid, all}]) of
         Matches when Matches > 0 ->
@@ -84,4 +87,5 @@ priv_file(Filename) ->
     filename:join(priv_dir(), Filename).
 
 priv_read_file(Filename) ->
-    file:read_file(priv_file(Filename)).
+    {ok, Contents} = file:read_file(priv_file(Filename)),
+    Contents.
