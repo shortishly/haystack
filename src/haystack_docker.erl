@@ -15,10 +15,6 @@
 -module(haystack_docker).
 -behaviour(gen_server).
 
-%% API.
--export([start_link/0]).
-
-%% gen_server.
 -export([code_change/3]).
 -export([handle_call/3]).
 -export([handle_cast/2]).
@@ -31,28 +27,10 @@
 -include_lib("kernel/include/inet.hrl").
 -include_lib("public_key/include/public_key.hrl").
 
-%% API.
 
 -export_type([id/0]).
 
 -type id() :: <<_:64>>.
-
--spec start_link() -> {ok, pid()}.
-start_link() ->
-    case connection() of
-        {ok, #{host := Host,
-               port := Port,
-               cert := Cert,
-               key := Key}} ->
-            start_link(Host, Port, Cert, Key);
-
-        {ok, #{host := Host,
-               port := Port}} ->
-            start_link(Host, Port);
-
-        {error, _} = Error ->
-            Error
-    end.
 
 start_link(Host, Port) ->
     gen_server:start_link(ref({Host, Port}), ?MODULE, [Host, Port], []).
@@ -61,7 +39,7 @@ start_link(Host, Port, Cert, Key) ->
     gen_server:start_link(ref({Host, Port, Cert, Key}), ?MODULE, [Host, Port, Cert, Key], []).
 
 ref(Name) ->
-    {via, gproc, {n, l, ?MODULE, Name}}.
+    {via, gproc, {n, l, {?MODULE, Name}}}.
 
 
 init([Host, Port, Cert, Key]) ->
@@ -221,69 +199,6 @@ terminate(_, _) ->
 
 code_change(_, State, _) ->
     {ok, State}.
-
-connection() ->
-    case {haystack_config:docker(host),
-          haystack_config:docker(cert_path),
-          haystack_config:docker(cert),
-          haystack_config:docker(key)} of
-
-        {undefined, _, _, _} ->
-            {error, {missing, "DOCKER_HOST"}};
-
-        {URI, undefined, undefined, undefined} ->
-            connection(URI);
-
-        {_, undefined, _, undefined} ->
-            {error, {missing, "DOCKER_KEY"}};
-
-        {_, undefined, undefined, _} ->
-            {error, {missing, "DOCKER_CERT"}};
-
-        {URI, _, Cert, Key} when is_list(Cert) andalso is_list(Key) ->
-            connection(URI, list_to_binary(Cert), list_to_binary(Key));
-
-        {URI, CertPath, undefined, undefined} ->
-            case {read_file(CertPath, "cert.pem"),
-                  read_file(CertPath, "key.pem")} of
-
-                {{ok, Cert}, {ok, Key}} ->
-                    connection(URI, Cert, Key);
-
-                {{error, _} = Error, _} ->
-                    Error;
-
-                {_, {error, _} = Error}->
-                    Error
-            end
-    end.
-
-connection(URI, Cert, Key) ->
-    [{KeyType, Value, _}] = public_key:pem_decode(Key),
-    [{_, Certificate, _}] = public_key:pem_decode(Cert),
-    case connection(URI) of
-        {ok, Details} ->
-            {ok, Details#{cert => Certificate,
-                          key => {KeyType, Value}}};
-
-        {error, _} = Error ->
-            Error
-    end.
-
-
-connection(URI) ->
-    case http_uri:parse(URI) of
-        {ok, {_, _, Host, Port, _, _}} ->
-            {ok, #{host => Host, port => Port}};
-
-        {error, _} = Error ->
-            Error
-    end.
-
-
-read_file(Path, File) ->
-    file:read_file(filename:join(Path, File)).
-
 
 process_containers(Containers) ->
     haystack_docker_container:process(haystack_jsx:decode(Containers)).
