@@ -50,10 +50,8 @@ SHELL_DEPS = \
 SHELL_OPTS = \
 	-boot start_sasl \
 	-config dev.config \
-	-name $(PROJECT) \
 	-s $(PROJECT) \
 	-s rb \
-	-s sync \
-	-setcookie $(PROJECT)
+	-s sync
 
 include erlang.mk
