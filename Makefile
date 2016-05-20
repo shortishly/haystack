@@ -15,7 +15,7 @@
 #
 PROJECT = haystack
 PROJECT_DESCRIPTION = DNS based load balancer integrated with Docker
-PROJECT_VERSION = 0.3.1
+PROJECT_VERSION = 0.4.0
 
 DEPS = \
 	cowboy \
@@ -50,10 +50,8 @@ SHELL_DEPS = \
 SHELL_OPTS = \
 	-boot start_sasl \
 	-config dev.config \
-	-name $(PROJECT) \
 	-s $(PROJECT) \
 	-s rb \
-	-s sync \
-	-setcookie $(PROJECT)
+	-s sync
 
 include erlang.mk

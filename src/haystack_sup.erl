@@ -34,7 +34,7 @@ init([]) ->
     {ok, {#{intensity => 5, period => 5}, Procs}}.
 
 supervisor(Module) ->
-    supervisor(Module, permanent).
+    supervisor(Module, transient).
 
 supervisor(Module, Restart) ->
     supervisor(Module, Restart, []).
