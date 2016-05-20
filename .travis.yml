@@ -1,18 +1,8 @@
 ---
 language: erlang
 
-branches:
-  only:
-    - master
-
-script: make
-
 otp_release:
   - 18.2
 
-before_install:
-  - gem install fpm
-  - gem install package_cloud
-
-after_success:
-  - bin/package
+script:
+  - make deps app
