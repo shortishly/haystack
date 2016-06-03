@@ -13,6 +13,7 @@
 %% limitations under the License.
 
 -module(haystack_docker_network).
+-export([all/0]).
 -export([is_global/1]).
 -export([lookup/1]).
 -export([process/1]).
@@ -30,6 +31,24 @@
 
 on_load() ->
     crown_table:reuse(?MODULE).
+
+
+all() ->
+    [to_map(Network) || Network <- ets:tab2list(?MODULE)].
+
+to_map(
+  #?MODULE{id = Id,
+           name = Name,
+           scope = Scope,
+           driver = Driver,
+           gateway = Gateway,
+           subnet = Subnet}) ->
+    #{id => Id,
+      name => Name,
+      scope => Scope,
+      driver => Driver,
+      gateway => Gateway,
+      subnet => Subnet}.
 
 add(Id, Name, Scope, Driver, Gateway, Subnet) ->
     ets:insert(?MODULE, [r(Id, Name, Scope, Driver, Gateway, Subnet)]).

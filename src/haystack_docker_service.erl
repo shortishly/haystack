@@ -14,6 +14,7 @@
 
 -module(haystack_docker_service).
 -export([add/5]).
+-export([all/0]).
 -export([remove/1]).
 
 -on_load(on_load/0).
@@ -33,6 +34,30 @@
 
 on_load() ->
     crown_table:reuse(?MODULE, bag).
+
+all() ->
+    [to_map(Service) || Service <- ets:tab2list(?MODULE)].
+
+to_map(
+    #?MODULE{id = Id,
+             name = Name,
+             class = Class,
+             type = Type,
+             ttl = TTL,
+             priority = Priority,
+             weight = Weight,
+             port = Port,
+             target = Target}) ->
+    #{id => Id,
+      name => Name,
+      class => Class,
+      type => Type,
+      ttl => TTL,
+      priority => Priority,
+      weight => Weight,
+      port => Port,
+      target => Target}.
+      
 
 
 r(Id, Name, Class, Type, TTL, Priority, Weight, Port, Target) ->

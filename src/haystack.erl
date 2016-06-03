@@ -14,6 +14,7 @@
 
 -module(haystack).
 
+-export([description/0]).
 -export([ensure_loaded/0]).
 -export([get_env/1]).
 -export([get_env/2]).
@@ -25,6 +26,7 @@
 -export([start/0]).
 -export([trace/0]).
 -export([trace/1]).
+-export([vsn/0]).
 
 
 
@@ -89,3 +91,14 @@ priv_file(Filename) ->
 priv_read_file(Filename) ->
     {ok, Contents} = file:read_file(priv_file(Filename)),
     Contents.
+
+
+description() ->
+    get_key(description).
+
+vsn() ->
+    get_key(vsn).
+
+get_key(Key) ->
+    {ok, Value} = application:get_key(?MODULE, Key),
+    Value.
