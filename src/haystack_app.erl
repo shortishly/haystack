@@ -29,7 +29,7 @@ start(_Type, _Args) ->
                                   start_http(http_alt)]}}
     catch
         _:Reason ->
-            {error, Reason}
+            {error, {Reason, erlang:get_stacktrace()}}
     end.
 
 stop(#{listeners := Listeners}) ->
@@ -68,17 +68,28 @@ dispatch(Prefix) ->
 
 
 resources(http) ->
-    [{<<"localhost">>,
-      [{<<"/zones">>, dns_zone_resource, []},
-       {<<"/secrets">>, dns_secret_resource, []}]},
-     munchausen_proxy(<<"_http._tcp.">>)];
+    [munchausen_proxy_resources(<<"_http._tcp.">>),
+     dns_internal_resources(),
+     api_resources()];
 
 resources(http_alt) ->
-    [munchausen_proxy(<<"_http-alt._tcp.">>)].
+    [munchausen_proxy_resources(<<"_http-alt._tcp.">>)].
 
-munchausen_proxy(Prefix) ->
+munchausen_proxy_resources(Prefix) ->
     {<<"[...].", (haystack_config:origin(services))/binary>>,
      [{'_',
        munchausen_http_proxy_resource,
        #{prefix => Prefix,
          balancer => haystack_balance_random}}]}.
+
+dns_internal_resources() ->
+    {<<"localhost">>,
+      [{<<"/zones">>, dns_zone_resource, []},
+       {<<"/secrets">>, dns_secret_resource, []}]}.
+
+api_resources() ->
+    {'_',
+     [{<<"/api/containers">>, haystack_api_containers_resource, []},
+      {<<"/api/info">>, haystack_api_info_resource, []},
+      {<<"/api/networks">>, haystack_api_networks_resource, []},
+      {<<"/api/services">>, haystack_api_services_resource, []}]}.

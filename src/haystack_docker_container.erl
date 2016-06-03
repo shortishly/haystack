@@ -14,6 +14,7 @@
 
 -module(haystack_docker_container).
 -export([add/6]).
+-export([all/0]).
 -export([lookup/1]).
 -export([remove/1]).
 -export([process/1]).
@@ -31,6 +32,9 @@
 
 on_load() ->
     crown_table:reuse(?MODULE, bag).
+
+all() ->
+    [to_map(Container) || Container <- ets:tab2list(?MODULE)].
 
 add(Id, Address, Network, Endpoint, MacAddress, Name) ->
     ets:insert(
@@ -67,8 +71,19 @@ r(Id, Addr, Network, Endpoint, MacAddress, Name) ->
              name = Name}.
 
 
-to_map(#?MODULE{addr = Addr, network = Network}) ->
-    #{addr => Addr, network => Network}.
+to_map(
+  #?MODULE{id = Id,
+           addr = Addr,
+           network = Network,
+           endpoint = Endpoint,
+           mac_address = MacAddress,
+           name = Name}) ->
+    #{id => Id,
+      addr => Addr,
+      network => Network,
+      endpoint => Endpoint,
+      mac_address => MacAddress,
+      name => Name}.
 
 
 register_container(Id, Address) ->

@@ -18,6 +18,7 @@ PROJECT_DESCRIPTION = DNS based load balancer integrated with Docker
 PROJECT_VERSION = 0.4.0
 
 DEPS = \
+	cors \
 	cowboy \
 	crown \
 	dns \
@@ -37,6 +38,7 @@ LOCAL_DEPS = \
 	ssh \
 	tools
 
+dep_cors = git https://github.com/shortishly/cors.git master
 dep_cowboy = git https://github.com/ninenines/cowboy.git 2.0.0-pre.3
 dep_crown = git https://github.com/shortishly/crown.git master
 dep_dns = git https://github.com/shortishly/dns.git master
