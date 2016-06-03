@@ -17,10 +17,3 @@ app:
     - docker rmi $(bin/release_name):$(bin/version)
   only:
     - master
-
-app:
-  stage: build
-  script:
-    - make deps app
-  only:
-    - develop
