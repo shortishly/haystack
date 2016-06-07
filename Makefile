@@ -15,7 +15,7 @@
 #
 PROJECT = haystack
 PROJECT_DESCRIPTION = DNS based load balancer integrated with Docker
-PROJECT_VERSION = 0.5.2
+PROJECT_VERSION = 0.6.0
 
 DEPS = \
 	cors \

@@ -18,6 +18,7 @@
 -export([content_types_provided/2]).
 -export([init/2]).
 -export([options/2]).
+-export([services/0]).
 -export([to_json/2]).
 
 
@@ -39,17 +40,96 @@ allowed() ->
      <<"OPTIONS">>].
 
 to_json(Req, State) ->
-    [Major, Minor, Patch] = string:tokens(haystack:vsn(), "."),
     {jsx:encode(
-       #{applications => lists:foldl(
-                           fun
-                               ({Application, _, VSN}, A) ->
-                                   A#{Application => any:to_binary(VSN)}
-                           end,
-                           #{},
-                           application:which_applications()),
-         version => #{major => any:to_integer(Major),
-                      minor => any:to_integer(Minor),
-                      patch => any:to_integer(Patch)}}),
+       #{applications => applications(),
+         containers => containers(),
+         networks => networks(),
+         services => services(),
+         version => version()}),
      Req,
      State}.
+
+applications() ->
+    lists:foldl(
+      fun
+          ({Application, _, VSN}, A) ->
+              A#{Application => any:to_binary(VSN)}
+      end,
+      #{},
+      application:which_applications()).
+
+containers() ->
+    lists:foldl(
+      fun
+          (#{id := Id, addr := Addr} = Container, A) ->
+              A#{Id => maps:without([id], Container#{addr := any:to_binary(inet:ntoa(Addr))})}
+      end,
+      #{},
+      haystack_docker_container:all()).
+
+networks() ->
+    lists:foldl(
+      fun
+          (#{id := Id, subnet := #{address := Address, mask := Mask}} = Network, A) ->
+              A#{Id => drop_undefined(
+                         maps:without(
+                           [id],
+                           Network#{subnet := <<(any:to_binary(inet:ntoa(Address)))/bytes,
+                                                "/",
+                                                (any:to_binary(Mask))/bytes>>}))};
+          
+          (#{id := Id} = Network, A) ->
+              A#{Id => drop_undefined(maps:without([id], Network))}
+      end,
+      #{},
+      haystack_docker_network:all()).
+
+drop_undefined(M) ->
+    maps:filter(
+      fun
+          (_, undefined) ->
+              false;
+          (_, _) ->
+              true
+      end,
+      M).
+
+services() ->
+    lists:foldl(
+      fun
+
+          (#{name := Name, target := Target} = Service, Services) ->
+              Id = uri(Service),
+
+              case Services of
+                  #{Id := Existing} ->
+                      Services#{Id := [Service#{name := dns_name(Name), target := dns_name(Target)} | Existing]};
+
+                  #{} ->
+                      Services#{Id => [Service#{name := dns_name(Name), target := dns_name(Target)}]}
+              end
+
+      end,
+      #{},
+      haystack_docker_service:all()).
+
+uri(#{name := Name, port := Port, type := Type}) ->
+    <<Type/bytes, "://", (dns_name(Name))/bytes, ":", (any:to_binary(Port))/bytes>>.
+
+
+dns_name(Names) ->
+    lists:foldr(
+      fun
+          (Name, <<>>) ->
+              Name;
+          (Name, A) ->
+              <<Name/bytes, ".", A/bytes>>
+      end,
+      <<>>,
+      Names).
+
+version() ->
+    [Major, Minor, Patch] = string:tokens(haystack:vsn(), "."),
+    #{major => any:to_integer(Major),
+      minor => any:to_integer(Minor),
+      patch => any:to_integer(Patch)}.
