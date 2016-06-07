@@ -15,6 +15,7 @@
 -module(haystack_config).
 
 -export([acceptors/1]).
+-export([debug/1]).
 -export([docker/1]).
 -export([enabled/1]).
 -export([origin/0]).
@@ -47,6 +48,8 @@ port(http_alt) ->
 enabled(debug) ->
     envy(to_boolean, debug, false).
 
+debug(applications) ->
+    envy(to_list, debug_applications, "haystack").
 
 acceptors(http) ->
     envy(to_integer, http_acceptors, 100);

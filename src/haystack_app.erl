@@ -92,4 +92,16 @@ api_resources() ->
      [{<<"/api/containers">>, haystack_api_containers_resource, []},
       {<<"/api/info">>, haystack_api_info_resource, []},
       {<<"/api/networks">>, haystack_api_networks_resource, []},
-      {<<"/api/services">>, haystack_api_services_resource, []}]}.
+      {<<"/api/services">>, haystack_api_services_resource, []},
+      {<<"/ui">>, haystack_permanently_moved_resource, #{path => <<"/ui/index.html">>}},
+      {<<"/ui/services">>, haystack_permanently_moved_resource, #{path => <<"/ui/index.html">>}},
+      {<<"/ui/networks">>, haystack_permanently_moved_resource, #{path => <<"/ui/index.html">>}},
+      {<<"/ui/containers">>, haystack_permanently_moved_resource, #{path => <<"/ui/index.html">>}},
+      {<<"/ui/[...]">>,
+       munchausen_http_proxy_resource,
+       #{balancer => fun
+                         (_, <<"/ui/", Path/bytes>>) ->
+                             #{host => "shortishly.github.io",
+                               port => 80,
+                               path => <<"/haystack-app/", Path/bytes>>}
+                     end}}]}.

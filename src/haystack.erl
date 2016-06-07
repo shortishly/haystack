@@ -48,7 +48,13 @@ ensure_loaded() ->
     lists:foreach(fun code:ensure_loaded/1, modules()).
 
 modules() ->
-    modules(?MODULE).
+    lists:foldl(
+      fun(Application, A) ->
+              modules(any:to_atom(Application)) ++ A
+      end,
+      [],
+      string:tokens(
+        haystack_config:debug(applications), ",")).
 
 modules(Application) ->
     {ok, Modules} = application:get_key(Application, modules),
