@@ -20,7 +20,10 @@
 -export([options/2]).
 -export([services/0]).
 -export([to_json/2]).
-
+-export([applications/0]).
+-export([containers/0]).
+-export([info/0]).
+-export([networks/0]).
 
 init(Req, _) ->
     {cowboy_rest, cors:allow_origin(Req), #{}}.
@@ -40,14 +43,16 @@ allowed() ->
      <<"OPTIONS">>].
 
 to_json(Req, State) ->
-    {jsx:encode(
-       #{applications => applications(),
+    {jsx:encode(info()),
+     Req,
+     State}.
+
+info() ->
+    #{applications => applications(),
          containers => containers(),
          networks => networks(),
          services => services(),
-         version => version()}),
-     Req,
-     State}.
+         version => version()}.
 
 applications() ->
     lists:foldl(
@@ -70,11 +75,13 @@ containers() ->
 networks() ->
     lists:foldl(
       fun
-          (#{id := Id, subnet := #{address := Address, mask := Mask}} = Network, A) ->
+          (#{id := Id, gateway := #{address := Gateway}, subnet := #{address := Address, mask := Mask}} = Network, A) ->
               A#{Id => drop_undefined(
                          maps:without(
                            [id],
-                           Network#{subnet := <<(any:to_binary(inet:ntoa(Address)))/bytes,
+                           Network#{
+                             gateway := any:to_binary(inet:ntoa(Gateway)),
+                             subnet := <<(any:to_binary(inet:ntoa(Address)))/bytes,
                                                 "/",
                                                 (any:to_binary(Mask))/bytes>>}))};
           
