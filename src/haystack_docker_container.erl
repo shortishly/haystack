@@ -197,14 +197,17 @@ container_name(_, Image) ->
 image_name(Image) ->
     case binary:split(Image, <<"/">>) of
         [Image] ->
-            Image;
+            name_without_version(Image);
 
         [_, NameVersion] ->
-            case binary:split(NameVersion, <<":">>) of
-                [Name, _Version] ->
-                    Name;
+            name_without_version(NameVersion)
+    end.
 
-                [Name] ->
-                    Name
-            end
+name_without_version(NameVersion) ->
+    case binary:split(NameVersion, <<":">>) of
+        [Name, _Version] ->
+            Name;
+        
+        [Name] ->
+            Name
     end.
