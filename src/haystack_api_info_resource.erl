@@ -43,16 +43,15 @@ allowed() ->
      <<"OPTIONS">>].
 
 to_json(Req, State) ->
-    {jsx:encode(info()),
-     Req,
-     State}.
+    {jsx:encode(info()), Req, State}.
 
 info() ->
     #{applications => applications(),
-         containers => containers(),
-         networks => networks(),
-         services => services(),
-         version => version()}.
+      containers => containers(),
+      networks => networks(),
+      services => services(),
+      proxy => munchausen_http_proxy_resource:metrics(),
+      version => version()}.
 
 applications() ->
     lists:foldl(
@@ -81,6 +80,15 @@ networks() ->
                            [id],
                            Network#{
                              gateway := any:to_binary(inet:ntoa(Gateway)),
+                             subnet := <<(any:to_binary(inet:ntoa(Address)))/bytes,
+                                                "/",
+                                                (any:to_binary(Mask))/bytes>>}))};
+          
+          (#{id := Id, subnet := #{address := Address, mask := Mask}} = Network, A) ->
+              A#{Id => drop_undefined(
+                         maps:without(
+                           [id],
+                           Network#{
                              subnet := <<(any:to_binary(inet:ntoa(Address)))/bytes,
                                                 "/",
                                                 (any:to_binary(Mask))/bytes>>}))};

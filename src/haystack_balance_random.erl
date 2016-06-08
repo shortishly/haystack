@@ -16,14 +16,20 @@
 -export([pick/2]).
 
 pick(Hostname, Path) ->
+    haystack_metric:increment(
+      #{hostname => Hostname,
+        module => ?MODULE,
+        path => Path}),
+
     case dns_node:find(dns_name:labels(Hostname), in, srv) of
         not_found ->
             not_found;
 
         Matches ->
-            random:seed(erlang:phash2(node()),
-                        erlang:monotonic_time(),
-                        erlang:unique_integer()),
+            random:seed(
+              erlang:phash2(node()),
+              erlang:monotonic_time(),
+              erlang:unique_integer()),
             (pick_one_from(Matches))#{path => Path}
     end.
 
