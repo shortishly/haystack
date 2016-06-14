@@ -1,17 +1,19 @@
 # Haystack
 
-Haystack is a HTTP load balancer integrated with
-[docker](https://www.docker.com). As containers start or stop they
-are added or removed from the load balancer.
+Haystack is a DNS based service discovery system and automatic load
+balancer. It manages service discovery by monitoring the container
+lifecycle through the docker API. It introspects container metadata
+exposing available services within its own DNS. It also includes a
+HTTP load balancer - as services start or stop they are maintained in
+a service group that is automatically load balanced for the
+clients. It is also integrated with Swarm and overlay based networks.
 
 ## Quick Start
 
-Haystack uses [SRV](https://en.wikipedia.org/wiki/SRV_record) records
-to register docker containers. Haystack connects to Docker using the
-`DOCKER_HOST` and `DOCKER_CERT_PATH` environment variables registering
-any existing containers. Haystack continues to regsister (and
-unregister) further containers as they stop and start.
-
+Haystack connects to Docker using the `DOCKER_HOST` and
+`DOCKER_CERT_PATH` environment variables registering any existing
+containers. Haystack continues to regsister (and unregister) further
+containers as they stop and start.
 
 Lets try this out, by starting up Haystack in docker:
 
